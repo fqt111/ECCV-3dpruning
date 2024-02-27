@@ -55,9 +55,18 @@ def parse_config():
     return args, cfg
 
 
-def eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id, dist_test=False):
+def eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id, dist_test=False,eval_pruning=False):
+    if eval_pruning:
+        checkpoint = torch.load(args.ckpt)
+        sd=checkpoint['model_state']
+        new = sd.copy()
+        for k, v in sd.items():
+            if "weight_orig" in k:
+                new[k.replace("weight_orig", "weight")] = v * sd[k.replace("weight_orig", "weight_mask")]
+        model.load_state_dict(new,strict=False) #
     # load checkpoint
-    model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=dist_test, 
+    else: 
+        model.load_params_from_file(filename=args.ckpt, logger=logger, to_cpu=dist_test, 
                                 pre_trained_path=args.pretrained_model)
     model.cuda()
     
