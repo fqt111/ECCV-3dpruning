@@ -13,7 +13,7 @@ from ...utils import box_utils
 from .once_toolkits import Octopus
 
 class ONCEDataset(DatasetTemplate):
-    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None):
+    def __init__(self, dataset_cfg, class_names, training=True, root_path=None, logger=None,val=None):
         """
         Args:
             root_path:
@@ -23,7 +23,7 @@ class ONCEDataset(DatasetTemplate):
             logger:
         """
         super().__init__(
-            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger
+            dataset_cfg=dataset_cfg, class_names=class_names, training=training, root_path=root_path, logger=logger,val=val
         )
         self.split = dataset_cfg.DATA_SPLIT['train'] if training else dataset_cfg.DATA_SPLIT['test']
         assert self.split in ['train', 'val', 'test', 'raw_small', 'raw_medium', 'raw_large']

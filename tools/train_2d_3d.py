@@ -48,9 +48,14 @@ def parse_config():
     parser.add_argument("--start_epoch", type=int, default=0, help="")
     parser.add_argument("--num_epochs_to_eval", type=int, default=0, help="number of checkpoints to be evaluated")
     parser.add_argument("--save_to_file", action="store_true", default=False, help="")
+    parser.add_argument('--use_tqdm_to_record', action='store_true', default=False, help='if True, the intermediate losses will not be logged to file, only tqdm will be used')
+    parser.add_argument('--logger_iter_interval', type=int, default=50, help='')
+    parser.add_argument('--ckpt_save_time_interval', type=int, default=300, help='in terms of seconds')
+    parser.add_argument('--wo_gpu_stat', action='store_true', help='')
+    parser.add_argument('--use_amp', action='store_true', help='use mix precision training')
+
 
     parser.add_argument("--sparsity", type=float, default=0, help="target sparsity")
-    
     parser.add_argument("--cuda", type=int, help="cuda number")
     parser.add_argument("--model", default='voxel-rcnn',type=str, help="network")
     parser.add_argument("--pruner", default='rd',type=str, help="pruning method")
@@ -388,15 +393,22 @@ def main():
         optim_cfg=cfg.OPTIMIZATION,
         start_epoch=start_epoch,
         total_epochs=args.epochs,
-        start_iter=0,
+        start_iter=it,
         rank=cfg.LOCAL_RANK,
         tb_log=tb_log,
-        ckpt_save_dir=new_ckpt_dir,
+        ckpt_save_dir=ckpt_dir,
         train_sampler=train_sampler,
         lr_warmup_scheduler=lr_warmup_scheduler,
         ckpt_save_interval=args.ckpt_save_interval,
         max_ckpt_save_num=args.max_ckpt_save_num,
-        merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch,
+        merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch, 
+        logger=logger, 
+        logger_iter_interval=args.logger_iter_interval,
+        ckpt_save_time_interval=args.ckpt_save_time_interval,
+        use_logger_to_record=not args.use_tqdm_to_record, 
+        show_gpu_stat=not args.wo_gpu_stat,
+        use_amp=args.use_amp,
+        cfg=cfg
     )
 
     if hasattr(train_set, "use_shared_memory") and train_set.use_shared_memory:
@@ -427,7 +439,7 @@ def main():
     #     ckpt_dir,
     #     dist_test=dist_train,
     # )
-    eval_single_ckpt(model.module if dist_train else model, test_loader, args, eval_output_dir, logger, 1,dist_test=dist_train)
+    eval_single_ckpt(model.module if dist_train else model, test_loader, args, eval_output_dir, logger, 1,dist_test=dist_train,eval_pruning=True)
     logger.info(
         "**********************End evaluation epoch%s/%s/%s(%s)**********************"
         % (str(it),cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag)

@@ -670,6 +670,6 @@ def get_model_flops(net, dataloader):
             total_nom_flops_3d.append(nom_flops_3d)
             total_denom_flops_2d.append(denom_flops_2d)
             total_nom_flops_2d.append(nom_flops_2d)
-    print(total_denom_flops/len(dataloader),nom_flops/len(dataloader))
+    print(sum(total_denom_flops)/len(dataloader),sum(total_nom_flops)/len(dataloader))
 
-    return (nom_flops/len(dataloader)) / (total_denom_flops/len(dataloader)),total_nom_flops_3d/len(dataloader),total_denom_flops_3d/len(dataloader),total_nom_flops_2d/len(dataloader),total_denom_flops_2d/len(dataloader)
+    return (sum(total_nom_flops)/len(dataloader)) / (sum(total_denom_flops)/len(dataloader)),sum(total_nom_flops_3d)/len(dataloader),sum(total_denom_flops_3d)/len(dataloader),sum(total_nom_flops_2d)/len(dataloader),sum(total_denom_flops_2d)/len(dataloader)
