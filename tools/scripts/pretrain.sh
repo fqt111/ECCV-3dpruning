@@ -1,0 +1,7 @@
+# how to train the model(pretrain model)
+python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999 train.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/once_models/centerpoint.yaml
+python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999 train.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/once_models/second.yaml
+python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999 train.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/once_models/pv_rcnn.yaml
+python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999 sparsity_flops.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/kitti_models/second.yaml --pretrained_model /home/OpenPCDet/output/second_7862.pth 
+python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999 sparsity_flops.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/kitti_models/pv_rcnn.yaml --pretrained_model /home/OpenPCDet/output/pv_rcnn_8369.pth 
+python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999 sparsity_flops.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/kitti_models/voxel_rcnn_car.yaml --pretrained_model /home/OpenPCDet/output/voxel_rcnn_car_84.54.pth 
