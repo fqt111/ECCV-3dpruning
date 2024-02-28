@@ -170,16 +170,6 @@ def main():
         logger=logger,
         training=False,
     )
-    flop_set, flop_loader, sampler = build_dataloader(
-        dataset_cfg=cfg.DATA_CONFIG,
-        class_names=cfg.CLASS_NAMES,
-        batch_size=1,
-        dist=dist_train,
-        workers=args.workers,
-        logger=logger,
-        training=False,
-        val='flop'
-    )
 
     prune_set, prune_loader, sampler = build_dataloader(
         dataset_cfg=cfg.DATA_CONFIG,
