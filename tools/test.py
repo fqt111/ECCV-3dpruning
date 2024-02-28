@@ -40,6 +40,7 @@ def parse_config():
     parser.add_argument('--ckpt_dir', type=str, default=None, help='specify a ckpt directory to be evaluated if needed')
     parser.add_argument('--save_to_file', action='store_true', default=False, help='')
     parser.add_argument('--infer_time', action='store_true', default=False, help='calculate inference latency')
+    parser.add_argument('--eval_pruning', action='store_true', default=False, help='')
 
     args = parser.parse_args()
 
@@ -56,7 +57,7 @@ def parse_config():
 
 
 def eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id, dist_test=False,eval_pruning=False):
-    if not eval_pruning:
+    if eval_pruning:
         checkpoint = torch.load(args.ckpt)
         sd=checkpoint['model_state']
         new = sd.copy()
@@ -90,12 +91,13 @@ def get_no_evaluated_ckpt(ckpt_dir, ckpt_record_file, args):
         epoch_id = num_list[-1]
         if 'optim' in epoch_id:
             continue
+        
         if float(epoch_id) not in evaluated_ckpt_list and int(float(epoch_id)) >= args.start_epoch:
             return epoch_id, cur_ckpt
     return -1, None
 
 
-def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir, dist_test=False):
+def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir, dist_test=False,eval_pruning=False):
     # evaluated ckpt record
     ckpt_record_file = eval_output_dir / ('eval_list_%s.txt' % cfg.DATA_CONFIG.DATA_SPLIT['test'])
     with open(ckpt_record_file, 'a'):
@@ -110,6 +112,7 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
     while True:
         # check whether there is checkpoint which is not evaluated
         cur_epoch_id, cur_ckpt = get_no_evaluated_ckpt(ckpt_dir, ckpt_record_file, args)
+        print(cur_epoch_id,cur_ckpt)
         if cur_epoch_id == -1 or int(float(cur_epoch_id)) < args.start_epoch:
             wait_second = 30
             if cfg.LOCAL_RANK == 0:
@@ -123,8 +126,16 @@ def repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir
 
         total_time = 0
         first_eval = False
-
-        model.load_params_from_file(filename=cur_ckpt, logger=logger, to_cpu=dist_test)
+        if eval_pruning:
+            checkpoint = torch.load(cur_ckpt)
+            sd=checkpoint['model_state']
+            new = sd.copy()
+            for k, v in sd.items():
+                if "weight_orig" in k:
+                    new[k.replace("weight_orig", "weight")] = v * sd[k.replace("weight_orig", "weight_mask")]
+            model.load_state_dict(new,strict=False) #
+        else:
+            model.load_params_from_file(filename=cur_ckpt, logger=logger, to_cpu=dist_test)
         model.cuda()
 
         # start evaluation
@@ -207,9 +218,9 @@ def main():
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=test_set)
     with torch.no_grad():
         if args.eval_all:
-            repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir, dist_test=dist_test)
+            repeat_eval_ckpt(model, test_loader, args, eval_output_dir, logger, ckpt_dir, dist_test=dist_test,eval_pruning=args.eval_pruning)
         else:
-            eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id, dist_test=dist_test)
+            eval_single_ckpt(model, test_loader, args, eval_output_dir, logger, epoch_id, dist_test=dist_test,eval_pruning=args.eval_pruning)
 
 
 if __name__ == '__main__':

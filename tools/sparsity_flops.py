@@ -46,7 +46,7 @@ def parse_config():
     )
     parser.add_argument("--max_waiting_mins", type=int, default=0, help="max waiting minutes")
     parser.add_argument("--start_epoch", type=int, default=0, help="")
-    parser.add_argument("--num_epochs_to_eval", type=int, default=40, help="number of checkpoints to be evaluated")
+    parser.add_argument("--num_epochs_to_eval", type=int, default=0, help="number of checkpoints to be evaluated")
     parser.add_argument("--save_to_file", action="store_true", default=False, help="")
     parser.add_argument('--use_tqdm_to_record', action='store_true', default=False, help='if True, the intermediate losses will not be logged to file, only tqdm will be used')
     parser.add_argument('--logger_iter_interval', type=int, default=50, help='')
@@ -204,7 +204,7 @@ def main():
             prune.identity(m, name="weight")
     # cfg.MODEL.NAME='VoxelRCNN_pruning'
     # model_pruning=build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
-
+    model_copy=copy.deepcopy(model)
     container=copy.deepcopy(model)    
     optimizer = build_optimizer(model, cfg.OPTIMIZATION)
 
@@ -292,10 +292,7 @@ def main():
                 if match:
                     start_epoch = int(match.group(1))
                     print(f'matching current iteration %s and start_epoch %s',iter_start,start_epoch)
-    if args.pretrained_model:
-        module_list = get_modules(model)
-        for m in module_list:
-            prune.identity(m, name="weight")
+    
     # if args.ckpt is not None:
     #     it, start_epoch = model.load_params_with_optimizer(
     #         args.ckpt, to_cpu=dist_train, optimizer=optimizer, logger=logger
@@ -336,17 +333,26 @@ def main():
     #     os.makedirs(DICT_PATH)
 
 
-
-    if isinstance(model,nn.parallel.DistributedDataParallel): 
-        model=model.module
-    if start_epoch==0:
+    
+    total_flops_ratio=[]
+    for sparsity in range(10,100,5):
+        sparsity=sparsity/100
+        model=model_copy.deepcopy()
+        if args.pretrained_model:
+            module_list = get_modules(model)
+            for m in module_list:
+                prune.identity(m, name="weight")
+        
+        if isinstance(model,nn.parallel.DistributedDataParallel): 
+            model=model.module
         flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,test_loader)
         logger.info(
         "**********************before pruning/ flops_ratio:%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
         % (flops_ratio, nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
         )
+        total_flops_ratio.append(flops_ratio)
         # print(f"Before prune: FLOPs: {flops},total flops: {nom_flops}")
-        amounts,mask,totals=pruner(model,args, prune_loader, container,it,output_dir,sparsity=args.sparsity)
+        amounts,mask,totals=pruner(model,args, prune_loader, container,it,output_dir,sparsity=sparsity)
         flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,test_loader)
         logger.info(
         "**********************after pruning/ flops_ratio:%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
@@ -359,91 +365,91 @@ def main():
         "*********************each layer amount:%s/ whole network parameters:%s total pruning weight parameters:%s mask:%s *********************"
         % (amounts, total_params, totals,mask)
         )
+        # print(f"FLOPs: {flops},total flops: {nom_flops}")
+    print(total_flops_ratio)
+    # model.train()  # before wrap to DistributedDataParallel to support fixed some parameters
+    # if args.sync_bn:
+    #     model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+    # model.cuda()
+    # if dist_train:
+    #     model = nn.parallel.DistributedDataParallel(model, device_ids=[cfg.LOCAL_RANK % torch.cuda.device_count()])
+    # logger.info(model)
 
-    model.train()  # before wrap to DistributedDataParallel to support fixed some parameters
-    if args.sync_bn:
-        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-    model.cuda()
-    if dist_train:
-        model = nn.parallel.DistributedDataParallel(model, device_ids=[cfg.LOCAL_RANK % torch.cuda.device_count()])
-    logger.info(model)
-
-    lr_scheduler, lr_warmup_scheduler = build_scheduler(
-        optimizer,
-        total_iters_each_epoch=len(train_loader),
-        total_epochs=args.epochs,
-        last_epoch=last_epoch,
-        optim_cfg=cfg.OPTIMIZATION,
-    )
+    # lr_scheduler, lr_warmup_scheduler = build_scheduler(
+    #     optimizer,
+    #     total_iters_each_epoch=len(train_loader),
+    #     total_epochs=args.epochs,
+    #     last_epoch=last_epoch,
+    #     optim_cfg=cfg.OPTIMIZATION,
+    # )
     
     # -----------------------start training---------------------------
-    logger.info(
-        "**********************Start training /%s/%s(%s))*********************"
-        % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag)
-    )
-    new_ckpt_dir=output_dir / args.prune_mode/"ckpt"/str(args.sparsity)
-    new_ckpt_dir.mkdir(parents=True, exist_ok=True)
-    train_model(
-        model,
-        optimizer,
-        train_loader,
-        model_func=model_fn_decorator(),
-        lr_scheduler=lr_scheduler,
-        optim_cfg=cfg.OPTIMIZATION,
-        start_epoch=start_epoch,
-        total_epochs=args.epochs,
-        start_iter=it,
-        rank=cfg.LOCAL_RANK,
-        tb_log=tb_log,
-        ckpt_save_dir=new_ckpt_dir,
-        train_sampler=train_sampler,
-        lr_warmup_scheduler=lr_warmup_scheduler,
-        ckpt_save_interval=args.ckpt_save_interval,
-        max_ckpt_save_num=args.max_ckpt_save_num,
-        merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch, 
-        logger=logger, 
-        logger_iter_interval=args.logger_iter_interval,
-        ckpt_save_time_interval=args.ckpt_save_time_interval,
-        use_logger_to_record=not args.use_tqdm_to_record, 
-        show_gpu_stat=not args.wo_gpu_stat,
-        use_amp=args.use_amp,
-        cfg=cfg
-    )
+    # logger.info(
+    #     "**********************Start training /%s/%s(%s))*********************"
+    #     % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag)
+    # )
+    # new_ckpt_dir=output_dir / args.prune_mode/"ckpt"/str(args.sparsity)
+    # new_ckpt_dir.mkdir(parents=True, exist_ok=True)
+    # train_model(
+    #     model,
+    #     optimizer,
+    #     train_loader,
+    #     model_func=model_fn_decorator(),
+    #     lr_scheduler=lr_scheduler,
+    #     optim_cfg=cfg.OPTIMIZATION,
+    #     start_epoch=start_epoch,
+    #     total_epochs=args.epochs,
+    #     start_iter=it,
+    #     rank=cfg.LOCAL_RANK,
+    #     tb_log=tb_log,
+    #     ckpt_save_dir=new_ckpt_dir,
+    #     train_sampler=train_sampler,
+    #     lr_warmup_scheduler=lr_warmup_scheduler,
+    #     ckpt_save_interval=args.ckpt_save_interval,
+    #     max_ckpt_save_num=args.max_ckpt_save_num,
+    #     merge_all_iters_to_one_epoch=args.merge_all_iters_to_one_epoch, 
+    #     logger=logger, 
+    #     logger_iter_interval=args.logger_iter_interval,
+    #     ckpt_save_time_interval=args.ckpt_save_time_interval,
+    #     use_logger_to_record=not args.use_tqdm_to_record, 
+    #     show_gpu_stat=not args.wo_gpu_stat,
+    #     use_amp=args.use_amp,
+    #     cfg=cfg
+    # )
 
-    if hasattr(train_set, "use_shared_memory") and train_set.use_shared_memory:
-        train_set.clean_shared_memory()
+    # if hasattr(train_set, "use_shared_memory") and train_set.use_shared_memory:
+    #     train_set.clean_shared_memory()
 
-    logger.info(
-        "**********************End training %s/%s(%s)**********************\n\n\n"
-        % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag)
-    )
+    # logger.info(
+    #     "**********************End training %s/%s(%s)**********************\n\n\n"
+    #     % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag)
+    # )
 
-    logger.info(
-        "**********************Start evaluation / %s/%s(%s)**********************"
-        % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag)
-    )
+    # logger.info(
+    #     "**********************Start evaluation / %s/%s(%s)**********************"
+    #     % (cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag)
+    # )
     
-    eval_output_dir = output_dir / "eval" / "eval_with_train"
-    eval_output_dir.mkdir(parents=True, exist_ok=True)
-    args.start_epoch = max(
-        args.epochs - args.num_epochs_to_eval, 0
-    )  # Only evaluate the last args.num_epochs_to_eval epochs
+    # eval_output_dir = output_dir / "eval" / "eval_with_train"
+    # eval_output_dir.mkdir(parents=True, exist_ok=True)
+    # args.start_epoch = max(
+    #     args.epochs - args.num_epochs_to_eval, 0
+    # )  # Only evaluate the last args.num_epochs_to_eval epochs
 
-    repeat_eval_ckpt(
-        model.module if dist_train else model,
-        test_loader,
-        args,
-        eval_output_dir,
-        logger,
-        new_ckpt_dir,
-        dist_test=dist_train,
-        eval_pruning=True,
-    )
+    # # repeat_eval_ckpt(
+    # #     model.module if dist_train else model,
+    # #     test_loader,
+    # #     args,
+    # #     eval_output_dir,
+    # #     logger,
+    # #     ckpt_dir,
+    # #     dist_test=dist_train,
+    # # )
     # eval_single_ckpt(model.module if dist_train else model, test_loader, args, eval_output_dir, logger, 1,dist_test=dist_train,eval_pruning=True)
-    logger.info(
-        "**********************End evaluation epoch%s/%s/%s(%s)**********************"
-        % (str(it),cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag)
-    )
+    # logger.info(
+    #     "**********************End evaluation epoch%s/%s/%s(%s)**********************"
+    #     % (str(it),cfg.EXP_GROUP_PATH, cfg.TAG, args.extra_tag)
+    # )
         
 
 

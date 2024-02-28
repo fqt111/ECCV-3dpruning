@@ -7,12 +7,14 @@ POINT_CLOUD_RANGE: [-75.2, -75.2, -5.0, 75.2, 75.2, 3.0]
 INFO_PATH: {
     'train': [once_infos_train.pkl],
     'val': [once_infos_val.pkl],
+    'prune':[once_infos_val.pkl]
     # 'test': [once_infos_test.pkl],
 }
 
 DATA_SPLIT: {
     'train': train,
-    'test': val
+    'test': val,
+    'prune': 50_samples
 }
 
 DATA_AUGMENTOR:
