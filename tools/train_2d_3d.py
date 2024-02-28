@@ -37,9 +37,9 @@ def parse_config():
     parser.add_argument("--tcp_port", type=int, default=18889, help="tcp port for distrbuted training")
     parser.add_argument("--sync_bn", action="store_true", default=False, help="whether to use sync bn")
     parser.add_argument("--fix_random_seed", action="store_true", default=False, help="")
-    parser.add_argument("--ckpt_save_interval", type=int, default=1, help="number of training epochs")
+    parser.add_argument("--ckpt_save_interval", type=int, default=5, help="number of training epochs")
     parser.add_argument("--local_rank", type=int, default=0, help="local rank for distributed training")
-    parser.add_argument("--max_ckpt_save_num", type=int, default=2, help="max number of saved checkpoint")
+    parser.add_argument("--max_ckpt_save_num", type=int, default=10, help="max number of saved checkpoint")
     parser.add_argument("--merge_all_iters_to_one_epoch", action="store_true", default=False, help="")
     parser.add_argument(
         "--set", dest="set_cfgs", default=None, nargs=argparse.REMAINDER, help="set extra config keys if needed"
@@ -396,7 +396,7 @@ def main():
         start_iter=it,
         rank=cfg.LOCAL_RANK,
         tb_log=tb_log,
-        ckpt_save_dir=ckpt_dir,
+        ckpt_save_dir=new_ckpt_dir,
         train_sampler=train_sampler,
         lr_warmup_scheduler=lr_warmup_scheduler,
         ckpt_save_interval=args.ckpt_save_interval,
