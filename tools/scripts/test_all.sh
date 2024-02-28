@@ -4,5 +4,5 @@ python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost
 python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999  test.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/kitti_models/voxel_rcnn_car.yaml --ckpt_dir /home/OpenPCDet/results_finetune_head/home/OpenPCDet/tools/cfgs/kitti_models/voxel_rcnn_car/default/rd_retrain_approx/ckpt/0.8 --eval_all
 python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999  test.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/kitti_models/voxel_rcnn_car.yaml --ckpt_dir /home/OpenPCDet/results_finetune_head/home/OpenPCDet/tools/cfgs/kitti_models/voxel_rcnn_car/default/rd_retrain_approx/ckpt/0.9 --eval_all
 
-python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999  test.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/once_models/second.yaml --ckpt_dir /home/OpenPCDet/output/home/OpenPCDet/tools/cfgs/once_models/centerpoint/default/ckpt --eval_all --eval_pruning
+python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999  test.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/once_models/second.yaml --ckpt_dir /home/OpenPCDet/output/home/OpenPCDet/tools/cfgs/once_models/centerpoint/default/ckpt --eval_all
 
