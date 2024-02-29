@@ -19,7 +19,7 @@ from pcdet.models.detectors.voxel_rcnn import VoxelRCNN
 import spconv.pytorch as spconv
 import torch.nn as nn
 from utils.pruners_whole import get_weights, get_modules,get_all_modules,get_weights_2d
-
+from pcdet.models.model_utils.flops_utils import calculate_gemm_flops
 try:
     import kornia
 except:
@@ -458,8 +458,10 @@ class Hook:
     def hook_fn(self, module, input, output):
         if isinstance(module,spconv.SubMConv3d) or isinstance(module,spconv.SparseConv3d):
             self.input_tensor = input[0]
+            # self.input = torch.tensor(input[0].features.shape)
+            self.output = output
             self.input = torch.tensor(input[0].features.shape)
-            self.output = torch.tensor(output.features.shape)
+            # self.output = torch.tensor(output.features.shape)
             # print('sparse',input[0].features.shape,output.features.shape)
             self.input_tensor = input
             self.output_tensor = output
@@ -550,17 +552,21 @@ def get_model_flops(net, dataloader):
         denom_flops_3d = 0.0
         nom_flops_3d = 0.0
 
+        # new_input_dimens = input_dimens[1:11] + input_dimens[12:]
+        # new_output_dimens = output_dimens[1:11] + output_dimens[12:]
+        # new_unmaskeds = torch.cat((unmaskeds[1:11] , unmaskeds[12:]))
+        # new_totals = torch.cat((totals[1:11] , totals[12:]))
+        # new_layers = layers[1:11] + layers[12:]
+        # for i_dim,o_dim, surv, tot, m in zip(new_input_dimens,new_output_dimens, new_unmaskeds, new_totals, new_layers):
         for i_dim,o_dim, surv, tot, m in zip(input_dimens,output_dimens, unmaskeds, totals, layers):
-            if isinstance(m,spconv.SubMConv3d):
-                denom_flops+=o_dim[-2] * tot
-                nom_flops += o_dim[-2]  * surv 
-                denom_flops_3d += o_dim[-2] * tot 
-                nom_flops_3d += o_dim[-2]  * surv 
-            elif isinstance(m,spconv.SparseConv3d):
-                denom_flops+=o_dim[-2] * tot * 27
-                nom_flops += o_dim[-2] * surv *27
-                denom_flops_3d += o_dim[-2] * tot *27
-                nom_flops_3d += o_dim[-2] * surv *27
+            if isinstance(m,spconv.SubMConv3d) or isinstance(m,spconv.SparseConv3d):
+                # print(o_dim.indice_dict.keys())
+                unique_key = next(iter(o_dim.indice_dict.keys()))
+                flops=calculate_gemm_flops(o_dim,unique_key,i_dim[-1],o_dim.features.shape[-1])
+                denom_flops_3d +=flops
+                denom_flops+=flops
+                nom_flops += flops  * surv /tot
+                nom_flops_3d += flops  * surv /tot 
             elif isinstance(m,nn.Conv2d) or isinstance(m,nn.ConvTranspose2d):
                 denom_flops+=(o_dim[-2:].prod() * tot + (0 if m.bias is None else o_dim.prod()))
                 nom_flops += (o_dim[-2:].prod() * surv + (0 if m.bias is None else o_dim.prod()))
@@ -670,6 +676,6 @@ def get_model_flops(net, dataloader):
             total_nom_flops_3d.append(nom_flops_3d)
             total_denom_flops_2d.append(denom_flops_2d)
             total_nom_flops_2d.append(nom_flops_2d)
-    print(sum(total_denom_flops)/len(dataloader),sum(total_nom_flops)/len(dataloader))
+    print(sum(total_denom_flops)/len(dataloader),sum(total_nom_flops)/len(dataloader),sum(total_denom_flops_3d)/len(dataloader))
 
     return (sum(total_nom_flops)/len(dataloader)) / (sum(total_denom_flops)/len(dataloader)),sum(total_nom_flops_3d)/len(dataloader),sum(total_denom_flops_3d)/len(dataloader),sum(total_nom_flops_2d)/len(dataloader),sum(total_denom_flops_2d)/len(dataloader)

@@ -171,16 +171,15 @@ def main():
         training=False,
     )
 
-    # prune_set, prune_loader, sampler = build_dataloader(
-    #     dataset_cfg=cfg.DATA_CONFIG,
-    #     class_names=cfg.CLASS_NAMES,
-    #     batch_size=1,
-    #     dist=dist_train,
-    #     workers=args.workers,
-    #     logger=logger,
-    #     training=False,
-    #     val='prune'
-    # )
+    prune_set, prune_loader, sampler = build_dataloader(
+        dataset_cfg=cfg.DATA_CONFIG,
+        class_names=cfg.CLASS_NAMES,
+        batch_size=1,
+        dist=dist_train,
+        workers=args.workers,
+        logger=logger,
+        training=False,
+    )
 
 
     """ PRETRAIN (IF NEEDED) """
@@ -330,14 +329,13 @@ def main():
     if isinstance(model,nn.parallel.DistributedDataParallel): 
         model=model.module
     if start_epoch==0:
-        # flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,test_loader)
-        # logger.info(
-        # "**********************before pruning/ flops_ratio:%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
-        # % (flops_ratio, nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
-        # )
-        # print(f"Before prune: FLOPs: {flops},total flops: {nom_flops}")
+        flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,prune_loader)
+        logger.info(
+        "**********************before pruning/ flops_ratio:%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
+        % (flops_ratio, nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
+        )
         amounts,mask,totals=pruner(model,args, test_loader, container,it,output_dir,sparsity=args.sparsity)
-        flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,test_loader)
+        flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,prune_loader)
         logger.info(
         "**********************after pruning/ flops_ratio:%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
         % (flops_ratio, nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
