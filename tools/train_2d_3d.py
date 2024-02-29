@@ -419,16 +419,16 @@ def main():
         args.epochs - args.num_epochs_to_eval, 0
     )  # Only evaluate the last args.num_epochs_to_eval epochs
 
-    repeat_eval_ckpt(
-        model.module if dist_train else model,
-        test_loader,
-        args,
-        eval_output_dir,
-        logger,
-        new_ckpt_dir,
-        dist_test=dist_train,
-        eval_pruning=True,
-    )
+    # repeat_eval_ckpt(
+    #     model.module if dist_train else model,
+    #     test_loader,
+    #     args,
+    #     eval_output_dir,
+    #     logger,
+    #     new_ckpt_dir,
+    #     dist_test=dist_train,
+    #     eval_pruning=True,
+    # )
     # eval_single_ckpt(model.module if dist_train else model, test_loader, args, eval_output_dir, logger, 1,dist_test=dist_train,eval_pruning=True)
     logger.info(
         "**********************End evaluation epoch%s/%s/%s(%s)**********************"
