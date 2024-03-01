@@ -697,12 +697,12 @@ def get_model_flops(net, dataloader):
         #         for o_dim, m in zip(output_dimens, sm_modules):
         #             denom_flops += o_dim.prod() * 2 - 1
         #             nom_flops += o_dim.prod() * 2 - 1
-            total_denom_flops.append(denom_flops)
-            total_nom_flops.append(nom_flops)
-            total_denom_flops_3d.append(denom_flops_3d)
-            total_nom_flops_3d.append(nom_flops_3d)
-            total_denom_flops_2d.append(denom_flops_2d)
-            total_nom_flops_2d.append(nom_flops_2d)
+        total_denom_flops.append(denom_flops)
+        total_nom_flops.append(nom_flops)
+        total_denom_flops_3d.append(denom_flops_3d)
+        total_nom_flops_3d.append(nom_flops_3d)
+        total_denom_flops_2d.append(denom_flops_2d)
+        total_nom_flops_2d.append(nom_flops_2d)
         progress_bar.update()
     progress_bar.close()
     print(sum(total_denom_flops)/len(dataloader),sum(total_nom_flops)/len(dataloader),sum(total_denom_flops_3d)/len(dataloader))
