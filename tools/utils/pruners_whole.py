@@ -202,12 +202,12 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, dist_test=False, save_to_fi
     if dist_test:
         num_gpus = torch.cuda.device_count()
         local_rank = cfg.LOCAL_RANK % num_gpus
-        model = torch.nn.parallel.DistributedDataParallel(
-                model,
-                device_ids=[local_rank],
-                broadcast_buffers=False,
-                # find_unused_parameters=True
-        )
+        # model = torch.nn.parallel.DistributedDataParallel(
+        #         model,
+        #         device_ids=[local_rank],
+        #         broadcast_buffers=False,
+        #         # find_unused_parameters=True
+        # )
     if grad:
         model.train()
     else:

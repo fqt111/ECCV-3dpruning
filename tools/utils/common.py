@@ -579,24 +579,24 @@ def get_model_flops(net, dataloader):
                 nom_flops_2d += (surv + (0 if m.bias is None else o_dim.prod()))
     
 
-        lin_modules = [m for m in net.modules() if isinstance(m, (torch.nn.ReLU, torch.nn.Sigmoid, torch.nn.AdaptiveAvgPool2d,
-                                                                efficientnet.ElementMul, efficientnet.ElementAdd))]
-        if len(lin_modules)>0:
-            hookedlayers = hooklayers(lin_modules)
-            _,_= net(batch_dict)
-            fil = [hasattr(h, "output") for h in hookedlayers]
+        # lin_modules = [m for m in net.modules() if isinstance(m, (torch.nn.ReLU, torch.nn.Sigmoid, torch.nn.AdaptiveAvgPool2d,
+        #                                                         efficientnet.ElementMul, efficientnet.ElementAdd))]
+        # if len(lin_modules)>0:
+        #     hookedlayers = hooklayers(lin_modules)
+        #     _,_= net(batch_dict)
+        #     fil = [hasattr(h, "output") for h in hookedlayers]
 
-            if False in fil:
-                lin_modules = [lin_modules[i] for i in range(len(lin_modules)) if fil[i]]
-                hookedlayers = [hookedlayers[i] for i in range(len(hookedlayers)) if fil[i]]
+        #     if False in fil:
+        #         lin_modules = [lin_modules[i] for i in range(len(lin_modules)) if fil[i]]
+        #         hookedlayers = [hookedlayers[i] for i in range(len(hookedlayers)) if fil[i]]
 
-            output_dimens = [hookedlayers[i].output for i in range(0,len(lin_modules))]
-            for l in hookedlayers:
-                l.close()
+        #     output_dimens = [hookedlayers[i].output for i in range(0,len(lin_modules))]
+        #     for l in hookedlayers:
+        #         l.close()
 
-            for o_dim, m in zip(output_dimens, lin_modules):
-                denom_flops += o_dim.prod() + int(isinstance(m, torch.nn.AdaptiveAvgPool2d))
-                nom_flops += o_dim.prod() + int(isinstance(m, torch.nn.AdaptiveAvgPool2d))
+        #     for o_dim, m in zip(output_dimens, lin_modules):
+        #         denom_flops += o_dim.prod() + int(isinstance(m, torch.nn.AdaptiveAvgPool2d))
+        #         nom_flops += o_dim.prod() + int(isinstance(m, torch.nn.AdaptiveAvgPool2d))
 
     # att_modules = [m for m in net.modules() if isinstance(m, (vit.Attention))]
     # hookedlayers = hooklayers(att_modules)
@@ -620,56 +620,56 @@ def get_model_flops(net, dataloader):
     #     denom_flops += flop
     #     nom_flops += flop
 
-        pool_modules = [m for m in net.modules() if isinstance(m, (torch.nn.MaxPool2d, torch.nn.AvgPool2d))]
-        if len(pool_modules)>0:
-            hookedlayers = hooklayers(pool_modules)
-            _ = net(batch_dict)
-            fil = [hasattr(h, "output") for h in hookedlayers]
-            if False in fil:
-                pool_modules = [pool_modules[i] for i in range(len(pool_modules)) if fil[i]]
-                hookedlayers = [hookedlayers[i] for i in range(len(hookedlayers)) if fil[i]]
+        # pool_modules = [m for m in net.modules() if isinstance(m, (torch.nn.MaxPool2d, torch.nn.AvgPool2d))]
+        # if len(pool_modules)>0:
+        #     hookedlayers = hooklayers(pool_modules)
+        #     _ = net(batch_dict)
+        #     fil = [hasattr(h, "output") for h in hookedlayers]
+        #     if False in fil:
+        #         pool_modules = [pool_modules[i] for i in range(len(pool_modules)) if fil[i]]
+        #         hookedlayers = [hookedlayers[i] for i in range(len(hookedlayers)) if fil[i]]
 
-            output_dimens = [hookedlayers[i].output for i in range(0,len(pool_modules))]
-            for l in hookedlayers:
-                l.close()
+        #     output_dimens = [hookedlayers[i].output for i in range(0,len(pool_modules))]
+        #     for l in hookedlayers:
+        #         l.close()
 
-            for o_dim, m in zip(output_dimens, pool_modules):
-                denom_flops += o_dim.prod() * (m.kernel_size[0] * m.kernel_size[1] - int(isinstance(m, torch.nn.Maxpool)))
-                nom_flops += o_dim.prod() * (m.kernel_size[0] * m.kernel_size[1] - int(isinstance(m, torch.nn.Maxpool)))
+        #     for o_dim, m in zip(output_dimens, pool_modules):
+        #         denom_flops += o_dim.prod() * (m.kernel_size[0] * m.kernel_size[1] - int(isinstance(m, torch.nn.Maxpool)))
+        #         nom_flops += o_dim.prod() * (m.kernel_size[0] * m.kernel_size[1] - int(isinstance(m, torch.nn.Maxpool)))
 
-        bn_modules = [m for m in net.modules() if isinstance(m, (torch.nn.BatchNorm2d,torch.nn.BatchNorm1d, torch.nn.LayerNorm))]
-        if len(bn_modules)>0:
-            hookedlayers = hooklayers(bn_modules)
-            _ = net(batch_dict)
-            fil = [hasattr(h, "output") for h in hookedlayers]
-            if False in fil:
-                bn_modules = [bn_modules[i] for i in range(len(bn_modules)) if fil[i]]
-                hookedlayers = [hookedlayers[i] for i in range(len(hookedlayers)) if fil[i]]
+        # bn_modules = [m for m in net.modules() if isinstance(m, (torch.nn.BatchNorm2d,torch.nn.BatchNorm1d, torch.nn.LayerNorm))]
+        # if len(bn_modules)>0:
+        #     hookedlayers = hooklayers(bn_modules)
+        #     _ = net(batch_dict)
+        #     fil = [hasattr(h, "output") for h in hookedlayers]
+        #     if False in fil:
+        #         bn_modules = [bn_modules[i] for i in range(len(bn_modules)) if fil[i]]
+        #         hookedlayers = [hookedlayers[i] for i in range(len(hookedlayers)) if fil[i]]
 
-            output_dimens = [hookedlayers[i].output for i in range(0,len(bn_modules))]
-            for l in hookedlayers:
-                l.close()
+        #     output_dimens = [hookedlayers[i].output for i in range(0,len(bn_modules))]
+        #     for l in hookedlayers:
+        #         l.close()
 
-            for o_dim, m in zip(output_dimens, bn_modules):
-                denom_flops += o_dim.prod() * (4 if isinstance(m, torch.nn.BatchNorm2d) or isinstance(m,torch.nn.BatchNorm1d) else 10)
-                nom_flops += o_dim.prod() * (4 if isinstance(m, torch.nn.BatchNorm2d) or isinstance(m,torch.nn.BatchNorm1d) else 10)
+        #     for o_dim, m in zip(output_dimens, bn_modules):
+        #         denom_flops += o_dim.prod() * (4 if isinstance(m, torch.nn.BatchNorm2d) or isinstance(m,torch.nn.BatchNorm1d) else 10)
+        #         nom_flops += o_dim.prod() * (4 if isinstance(m, torch.nn.BatchNorm2d) or isinstance(m,torch.nn.BatchNorm1d) else 10)
             
-            sm_modules = [m for m in net.modules() if isinstance(m, (torch.nn.Softmax))]
-            if len(sm_modules)>0:
-                hookedlayers = hooklayers(sm_modules)
-                _ = net(batch_dict)
-                fil = [hasattr(h, "output") for h in hookedlayers]
-                if False in fil:
-                    sm_modules = [sm_modules[i] for i in range(len(sm_modules)) if fil[i]]
-                    hookedlayers = [hookedlayers[i] for i in range(len(hookedlayers)) if fil[i]]
+        #     sm_modules = [m for m in net.modules() if isinstance(m, (torch.nn.Softmax))]
+        #     if len(sm_modules)>0:
+        #         hookedlayers = hooklayers(sm_modules)
+        #         _ = net(batch_dict)
+        #         fil = [hasattr(h, "output") for h in hookedlayers]
+        #         if False in fil:
+        #             sm_modules = [sm_modules[i] for i in range(len(sm_modules)) if fil[i]]
+        #             hookedlayers = [hookedlayers[i] for i in range(len(hookedlayers)) if fil[i]]
 
-                output_dimens = [hookedlayers[i].output for i in range(0,len(sm_modules))]
-                for l in hookedlayers:
-                    l.close()
+        #         output_dimens = [hookedlayers[i].output for i in range(0,len(sm_modules))]
+        #         for l in hookedlayers:
+        #             l.close()
 
-                for o_dim, m in zip(output_dimens, sm_modules):
-                    denom_flops += o_dim.prod() * 2 - 1
-                    nom_flops += o_dim.prod() * 2 - 1
+        #         for o_dim, m in zip(output_dimens, sm_modules):
+        #             denom_flops += o_dim.prod() * 2 - 1
+        #             nom_flops += o_dim.prod() * 2 - 1
             total_denom_flops.append(denom_flops)
             total_nom_flops.append(nom_flops)
             total_denom_flops_3d.append(denom_flops_3d)

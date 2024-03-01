@@ -26,7 +26,7 @@ def parse_config():
     parser.add_argument("--cfg_file", type=str, default='cfgs/kitti_models/voxel_rcnn_car_spss_ratio0.5_sprs_ratio0.5.yaml', help="specify the config for training")
 
     parser.add_argument("--batch_size", type=int, default=64, required=False, help="batch size for training")
-    parser.add_argument("--epochs", type=int, default=40
+    parser.add_argument("--epochs", type=int, default=20
                         , required=False, help="number of epochs to train for")
     parser.add_argument("--workers", type=int, default=4, help="number of workers for dataloader")
     parser.add_argument("--extra_tag", type=str, default="default", help="extra tag for this experiment")
@@ -37,16 +37,16 @@ def parse_config():
     parser.add_argument("--tcp_port", type=int, default=18889, help="tcp port for distrbuted training")
     parser.add_argument("--sync_bn", action="store_true", default=False, help="whether to use sync bn")
     parser.add_argument("--fix_random_seed", action="store_true", default=False, help="")
-    parser.add_argument("--ckpt_save_interval", type=int, default=5, help="number of training epochs")
+    parser.add_argument("--ckpt_save_interval", type=int, default=1, help="number of training epochs")
     parser.add_argument("--local_rank", type=int, default=0, help="local rank for distributed training")
-    parser.add_argument("--max_ckpt_save_num", type=int, default=10, help="max number of saved checkpoint")
+    parser.add_argument("--max_ckpt_save_num", type=int, default=20, help="max number of saved checkpoint")
     parser.add_argument("--merge_all_iters_to_one_epoch", action="store_true", default=False, help="")
     parser.add_argument(
         "--set", dest="set_cfgs", default=None, nargs=argparse.REMAINDER, help="set extra config keys if needed"
     )
     parser.add_argument("--max_waiting_mins", type=int, default=0, help="max waiting minutes")
     parser.add_argument("--start_epoch", type=int, default=0, help="")
-    parser.add_argument("--num_epochs_to_eval", type=int, default=40, help="number of checkpoints to be evaluated")
+    parser.add_argument("--num_epochs_to_eval", type=int, default=20, help="number of checkpoints to be evaluated")
     parser.add_argument("--save_to_file", action="store_true", default=False, help="")
     parser.add_argument('--use_tqdm_to_record', action='store_true', default=False, help='if True, the intermediate losses will not be logged to file, only tqdm will be used')
     parser.add_argument('--logger_iter_interval', type=int, default=50, help='')
@@ -179,6 +179,7 @@ def main():
         workers=args.workers,
         logger=logger,
         training=False,
+        val='prune'
     )
 
 
@@ -329,12 +330,12 @@ def main():
     if isinstance(model,nn.parallel.DistributedDataParallel): 
         model=model.module
     if start_epoch==0:
-        flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,prune_loader)
-        logger.info(
-        "**********************before pruning/ flops_ratio:%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
-        % (flops_ratio, nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
-        )
-        amounts,mask,totals=pruner(model,args, test_loader, container,it,output_dir,sparsity=args.sparsity)
+        # flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,prune_loader)
+        # logger.info(
+        # "**********************before pruning/ flops_ratio:%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
+        # % (flops_ratio, nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
+        # )
+        amounts,mask,totals=pruner(model,args, prune_loader, container,it,output_dir,sparsity=args.sparsity)
         flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,prune_loader)
         logger.info(
         "**********************after pruning/ flops_ratio:%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"

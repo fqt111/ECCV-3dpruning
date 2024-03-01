@@ -1,5 +1,5 @@
 from .detector3d_template import Detector3DTemplate
-from ..dense_heads.anchor_head_single import AnchorHeadSingle
+from pcdet.models.backbones_3d.spconv_backbone import VoxelBackBone8x
 import torch
 class VoxelRCNN(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
@@ -7,12 +7,20 @@ class VoxelRCNN(Detector3DTemplate):
         self.module_list = self.build_networks()
 
     def forward(self, batch_dict,pruning=False):
+        if pruning:
+            for cur_module in self.module_list:
+                if isinstance(cur_module,VoxelBackBone8x):
+                    break
+                batch_dict = cur_module(batch_dict)
+            loss=torch.mean((batch_dict['encoded_spconv_tensor'].features ** 2))
+            return loss
+        
         for cur_module in self.module_list:
             batch_dict = cur_module(batch_dict)
-        if pruning:
-            loss_rpn=torch.mean((self.dense_head.forward_ret_dict['cls_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['box_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['dir_cls_preds'] ** 2))
-            loss_rcnn=torch.mean((self.roi_head.forward_ret_dict['rcnn_reg'] ** 2))+torch.mean((self.roi_head.forward_ret_dict['rcnn_cls'] ** 2))
-            return loss_rpn+loss_rcnn
+        # if pruning:
+        #     loss_rpn=torch.mean((self.dense_head.forward_ret_dict['cls_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['box_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['dir_cls_preds'] ** 2))
+        #     loss_rcnn=torch.mean((self.roi_head.forward_ret_dict['rcnn_reg'] ** 2))+torch.mean((self.roi_head.forward_ret_dict['rcnn_cls'] ** 2))
+        #     return loss_rpn+loss_rcnn
         if self.training:
             loss, tb_dict, disp_dict = self.get_training_loss()
             

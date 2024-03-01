@@ -14,5 +14,12 @@ do
 done
 echo $PORT
 
-python -m torch.distributed.launch --nproc_per_node=${NGPUS} --rdzv_endpoint=localhost:${PORT} train_2d_3d.py --launcher pytorch ${PY_ARGS}
+python3 -m torch.distributed.launch \
+        --nproc_per_node=8 \
+        --rdzv_endpoint=localhost:49999 \
+        train.py \
+        --launcher pytorch \
+        --cfg_file /home/OpenPCDet/tools/cfgs/nuscenes_models/cbgs_voxel0075_voxelnext.yaml \
+        #--pretrained_model /home/OpenPCDet/output/voxelnext_nuscenes_kernel1.pth \
+        #--sparsity 0.5
 

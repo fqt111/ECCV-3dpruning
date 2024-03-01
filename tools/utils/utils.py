@@ -3,6 +3,9 @@ import torch.nn as nn
 from copy import deepcopy
 import spconv.pytorch as spconv
 from pcdet.models.backbones_2d.base_bev_backbone import BaseBEVBackbone
+from pcdet.models.dense_heads.voxelnext_head import VoxelNeXtHead
+from pcdet.models.backbones_2d.base_bev_backbone import BaseBEVBackbone
+
 # Preliminaries. Not to be exported.
 
 def _is_2d_prunable_module(m):
@@ -47,6 +50,8 @@ def get_all_modules(model):
     modules_2d = []
     modules_3d = []
     for m in model.modules():
+        if isinstance(m,VoxelNeXtHead) or isinstance(m,BaseBEVBackbone):
+            break
         if _is_prunable_module(m):
             modules_3d.append(m)
         elif _is_2d_prunable_module(m):
@@ -57,6 +62,8 @@ def get_all_modules(model):
 def get_modules(model):
     modules = []
     for m in model.modules():
+        if isinstance(m,VoxelNeXtHead) or isinstance(m,BaseBEVBackbone):
+            break
         if _is_prunable_module(m) or _is_2d_prunable_module(m):
             modules.append(m)
     return modules
@@ -79,6 +86,8 @@ def get_model_sparsity(model):
     prunables = 0
     nnzs = 0
     for m in model.modules():
+        if isinstance(m,VoxelNeXtHead) or isinstance(m,BaseBEVBackbone):
+            break
         if _is_prunable_module(m) or _is_2d_prunable_module(m):
             prunables += m.weight.data.numel()
             nnzs += m.weight.data.nonzero().size(0)

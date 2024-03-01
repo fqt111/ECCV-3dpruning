@@ -7,11 +7,18 @@ class SECONDNet(Detector3DTemplate):
         self.module_list = self.build_networks()
 
     def forward(self, batch_dict,pruning=False):
+        if pruning:
+            for cur_module in self.module_list:
+                if isinstance(cur_module,VoxelBackBone8x):
+                    break
+                batch_dict = cur_module(batch_dict)
+            loss=torch.mean((batch_dict['encoded_spconv_tensor'].features ** 2))
+            return loss
+        # if pruning:
+        #     loss_rpn=torch.mean((self.dense_head.forward_ret_dict['cls_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['box_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['dir_cls_preds'] ** 2))
+        #     return loss_rpn
         for cur_module in self.module_list:
             batch_dict = cur_module(batch_dict)
-        if pruning:
-            loss_rpn=torch.mean((self.dense_head.forward_ret_dict['cls_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['box_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['dir_cls_preds'] ** 2))
-            return loss_rpn
         if self.training:
             loss, tb_dict, disp_dict = self.get_training_loss()
 

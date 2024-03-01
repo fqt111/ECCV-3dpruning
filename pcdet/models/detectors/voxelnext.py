@@ -1,15 +1,26 @@
 from .detector3d_template import Detector3DTemplate
-
+import torch.nn
+from pcdet.models.backbones_3d.spconv_backbone_voxelnext import VoxelResBackBone8xVoxelNeXt
 class VoxelNeXt(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
 
-    def forward(self, batch_dict):
-
+    def forward(self, batch_dict,pruning=False):
+        if pruning:
+            for cur_module in self.module_list:
+                batch_dict = cur_module(batch_dict)
+                if isinstance(cur_module,VoxelResBackBone8xVoxelNeXt):
+                    break
+            
+            # loss=torch.mean((batch_dict['encoded_spconv_tensor']['features'] ** 2))
+            loss=torch.mean((batch_dict['multi_scale_3d_features']['x_conv6'].features ** 2))
+            return loss
+            for pred_dict in self.dense_head.forward_ret_dict['pred_dicts']:
+                loss+=torch.mean((pred_dict['center'] ** 2))+torch.mean((pred_dict['center_z'] ** 2))+torch.mean((pred_dict['dim'] ** 2))+torch.mean((pred_dict['rot'] ** 2))+torch.mean((pred_dict['hm'] ** 2))+torch.mean((pred_dict['vel'] ** 2))
+            return loss
         for cur_module in self.module_list:
             batch_dict = cur_module(batch_dict)
-
         if self.training:
             loss, tb_dict, disp_dict = self.get_training_loss()
             ret_dict = {
