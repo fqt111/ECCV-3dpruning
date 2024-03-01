@@ -4,7 +4,7 @@ from copy import deepcopy
 import spconv.pytorch as spconv
 from pcdet.models.backbones_2d.base_bev_backbone import BaseBEVBackbone
 from pcdet.models.dense_heads.voxelnext_head import VoxelNeXtHead
-from pcdet.models.backbones_2d.base_bev_backbone import BaseBEVBackbone
+from pcdet.models.backbones_2d.map_to_bev.height_compression import HeightCompression
 
 # Preliminaries. Not to be exported.
 
@@ -64,7 +64,7 @@ def get_all_modules(model):
 def get_modules(model):
     modules = []
     for m in model.modules():
-        if isinstance(m,VoxelNeXtHead) or isinstance(m,BaseBEVBackbone):
+        if isinstance(m,VoxelNeXtHead) or isinstance(m,HeightCompression):
             break
         if _is_prunable_module(m) or _is_2d_prunable_module(m):
             modules.append(m)
