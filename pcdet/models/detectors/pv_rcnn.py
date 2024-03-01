@@ -9,9 +9,9 @@ class PVRCNN(Detector3DTemplate):
     def forward(self, batch_dict,pruning=False):
         if pruning:
             for cur_module in self.module_list:
+                batch_dict = cur_module(batch_dict)
                 if isinstance(cur_module,VoxelBackBone8x):
                     break
-                batch_dict = cur_module(batch_dict)
             loss=torch.mean((batch_dict['encoded_spconv_tensor'].features ** 2))
             # loss_rpn=torch.mean((self.dense_head.forward_ret_dict['cls_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['box_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['dir_cls_preds'] ** 2))
             # loss_point=torch.mean((self.point_head.forward_ret_dict['point_cls_preds'] ** 2))

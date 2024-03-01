@@ -1,5 +1,6 @@
 from .detector3d_template import Detector3DTemplate
 import torch
+from pcdet.models.backbones_3d.spconv_backbone import VoxelBackBone8x
 
 class SECONDNet(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
@@ -9,9 +10,9 @@ class SECONDNet(Detector3DTemplate):
     def forward(self, batch_dict,pruning=False):
         if pruning:
             for cur_module in self.module_list:
+                batch_dict = cur_module(batch_dict)
                 if isinstance(cur_module,VoxelBackBone8x):
                     break
-                batch_dict = cur_module(batch_dict)
             loss=torch.mean((batch_dict['encoded_spconv_tensor'].features ** 2))
             return loss
         # if pruning:

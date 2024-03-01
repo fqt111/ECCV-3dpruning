@@ -9,9 +9,9 @@ class VoxelRCNN(Detector3DTemplate):
     def forward(self, batch_dict,pruning=False):
         if pruning:
             for cur_module in self.module_list:
+                batch_dict = cur_module(batch_dict)
                 if isinstance(cur_module,VoxelBackBone8x):
                     break
-                batch_dict = cur_module(batch_dict)
             loss=torch.mean((batch_dict['encoded_spconv_tensor'].features ** 2))
             return loss
         
