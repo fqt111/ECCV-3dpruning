@@ -27,7 +27,7 @@
 # python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:50000 train_2d_3d.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/once_models/centerpoint.yaml --pretrained_model /home/OpenPCDet/output/home/OpenPCDet/tools/cfgs/once_models/centerpoint/default/ckpt/checkpoint_epoch_77.pth --sparsity 0.99
 
 python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:50000 train_2d_3d.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/nuscenes_models/cbgs_voxel0075_voxelnext.yaml --pretrained_model /home/OpenPCDet/output/voxelnext_nuscenes_kernel1.pth --sparsity 0.16
-python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999 train.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/once_models/pv_rcnn.yaml
+python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999 train.py --launcher pytorch --cfg_file /home/ECCV-3dpruning/tools/cfgs/once_models/second.yaml
 
 
 # python3 -m torch.distributed.launch --nproc_per_node=8 --rdzv_endpoint=localhost:49999 train.py --launcher pytorch --cfg_file /home/OpenPCDet/tools/cfgs/once_models/pv_rcnn.yaml

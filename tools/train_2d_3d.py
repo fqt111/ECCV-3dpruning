@@ -190,7 +190,7 @@ def main():
     #     model.cuda()
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
     if not args.pretrained_model: 
-        module_list = get_modules(model)
+        module_list = common.findconv(model, False)(model)
         for m in module_list:
             prune.identity(m, name="weight")
     # cfg.MODEL.NAME='VoxelRCNN_pruning'
@@ -284,7 +284,8 @@ def main():
                     start_epoch = int(match.group(1))
                     print(f'matching current iteration %s and start_epoch %s',iter_start,start_epoch)
     if args.pretrained_model:
-        module_list = get_modules(model)
+        module_list = common.findconv(model, False)
+        # module_list = get_modules(model)
         for m in module_list:
             prune.identity(m, name="weight")
     # if args.ckpt is not None:
@@ -339,10 +340,10 @@ def main():
         amounts,mask,totals=pruner(model,args, prune_loader, container,it,output_dir,sparsity=args.sparsity)
         flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,prune_loader)
         logger.info(
-        "**********************after pruning/ flops_ratio:%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
-        % (flops_ratio, nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
+        "**********************after pruning/ total flops_ratio:%s/ 3d flops_ratio:%s / nom_flops3d:%s /denon_flops3d:%s /nom_flops2d:%s /denon_flops2d:%s*********************"
+        % (flops_ratio, nom_flops_3d/denom_flops_3d,nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
         )
-        sparse = utils.get_model_sparsity(model)
+        sparse = common.get_model_sparsity(model)
         logger.info(f"sparsity: {sparse}")
         total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         logger.info(

@@ -1,6 +1,6 @@
 import torch
 from torch.nn.utils import prune
-from utils.utils import get_weights,get_weights_2d, get_modules, get_all_modules,get_model_sparsity
+from .utils import get_weights,get_weights_2d, get_all_modules
 import numpy as np
 import utils.common as common
 import utils.algo as algo
@@ -45,7 +45,7 @@ prune_weights_l1predefined: Perform layerwise pruning w.r.t. given amounts.
 
 
 def prune_weights_soft(model, amounts, alpha):
-    module_list = get_modules(model)
+    module_list = common.find_conv(model)
     for idx, m in enumerate(module_list):
         mask = algo.get_mask(m.weight if not hasattr(m, "weight_ori") else m.weight_ori, float(amounts[idx])).float()
         if not hasattr(m, "weight_ori"):
@@ -55,7 +55,7 @@ def prune_weights_soft(model, amounts, alpha):
 
 
 def tune_weights_gradients_pg(model, amounts, beta, gm_dropout=0.0):
-    module_list = get_modules(model)
+    module_list = common.find_conv(model)
     for idx, m in enumerate(module_list):
         mask = algo.get_mask(m.weight if not hasattr(m, "weight_ori") else m.weight_ori, float(amounts[idx])).float()
         soft_mask = mask + beta * (1 - mask)
@@ -66,19 +66,19 @@ def tune_weights_gradients_pg(model, amounts, beta, gm_dropout=0.0):
 
 
 def prune_weights_reparam(model):
-    module_list = get_modules(model)
+    module_list = common.find_conv(model)
     for m in module_list:
         prune.identity(m, name="weight")
 
 
 # def prune_weights_reparam_struct(model):
-#     module_list = get_modules(model)
+#     module_list = common.find_conv(model)
 #     for m in module_list:
 #         struct_identity(m,name="weight")
 
 
 def prune_weights_l1predefined(model, amounts, only_layerids=None):
-    mlist = get_modules(model)
+    mlist = common.findconv(model,False)
     for idx, m in enumerate(mlist):
         if only_layerids is not None and idx not in only_layerids:
             continue
@@ -86,7 +86,7 @@ def prune_weights_l1predefined(model, amounts, only_layerids=None):
 
 
 def prune_weights_l1structured(model, amounts, only_layerids=None):
-    mlist = get_modules(model)
+    mlist =  common.findconv(model,False)
     for idx, m in enumerate(mlist):
         if only_layerids is not None and idx not in only_layerids:
             continue
@@ -111,7 +111,7 @@ def prune_weights_lamp(model, amount):
 
 
 def prune_weights_uniform(model, amount):
-    module_list = get_modules(model)
+    module_list = common.find_conv(model)
     assert amount <= 1  # Can be updated later to handle > 1.
     for m in module_list:
         prune.l1_unstructured(m, name="weight", amount=amount)
@@ -156,7 +156,7 @@ def _extract_weight_tuples(model):
     """
     Gives you well-packed weight tensors for global pruning.
     """
-    mlist = get_modules(model)
+    mlist = common.find_conv(model)
     return tuple([(m, "weight") for m in mlist])
 
 
@@ -216,7 +216,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, dist_test=False, save_to_fi
     if cfg.LOCAL_RANK == 0:
         progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     grad_list = []
-    mlist = get_modules(model)
+    mlist = common.findconv(model)
     for i, batch_dict in enumerate(dataloader):
         load_data_to_gpu(batch_dict)
         loss = model(batch_dict,pruning=True)
@@ -601,7 +601,7 @@ class RDPruner:
             print('comparision between 2d and 3d model',sum(totals2d),sum(totals3d))
             print(unmaskeds,totals)
             self.prev_pc = [[float(1. - surv/tot)] for surv, tot in zip(unmaskeds, totals)]
-     
+    
         if hasattr(self, "prunedlayers") and len(self.prunedlayers[self.iter_cnt]):
             print(f"pruning {to_prune_layerids}-th layer")
             amounts = self.amounts
@@ -802,7 +802,7 @@ def _count_unmasked_weights(model):
     """
     Return a 1-dimensional tensor of #unmasked weights.
     """
-    mlist = get_modules(model)
+    mlist = common.findconv(model,False)
     unmaskeds = []
     for m in mlist:
         unmaskeds.append(m.weight_mask.count_nonzero())
@@ -825,10 +825,14 @@ def _count_total_weights(model):
     """
     Return a 1-dimensional tensor of #total weights.
     """
-    wlist = get_weights(model)
+    mlist = common.findconv(model,False)
     numels = []
-    for w in wlist:
-        numels.append(w.numel())
+    for m in mlist:
+        numels.append(m.weight.numel())
+    # wlist = get_weights(model)
+    
+    # for w in wlist:
+    #     numels.append(w.numel())
     return torch.FloatTensor(numels)
 
 

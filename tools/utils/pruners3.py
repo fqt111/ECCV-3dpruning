@@ -1,6 +1,6 @@
 import torch
 from torch.nn.utils import prune
-from tools.utils import get_weights, get_modules, get_model_sparsity
+from tools.utils import get_weights, get_modules
 import numpy as np
 import tools.common as common
 import tools.algo as algo

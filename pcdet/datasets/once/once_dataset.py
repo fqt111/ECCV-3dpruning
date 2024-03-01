@@ -35,9 +35,9 @@ class ONCEDataset(DatasetTemplate):
         self.toolkits = Octopus(self.root_path)
 
         self.once_infos = []
-        self.include_once_data(self.split)
+        self.include_once_data(self.split,val)
 
-    def include_once_data(self, split):
+    def include_once_data(self, split,val=None):
         if self.logger is not None:
             self.logger.info('Loading ONCE dataset')
         once_infos = []
@@ -49,7 +49,8 @@ class ONCEDataset(DatasetTemplate):
             with open(info_path, 'rb') as f:
                 infos = pickle.load(f)
                 once_infos.extend(infos)
-
+        if val=='prune' :
+            once_infos=once_infos[:100]
         def check_annos(info):
             return 'annos' in info
 

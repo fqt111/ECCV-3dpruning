@@ -2,7 +2,7 @@ import torch
 
 # import resnetpy
 from utils.models import resnet_cifar, efficientnet
-
+import tqdm
 # import vggpy
 # import alexnetpy
 # import densenetpy
@@ -15,10 +15,10 @@ import numpy as np
 import time
 import timm.models.vision_transformer as vit
 import warnings
-from pcdet.models.detectors.voxel_rcnn import VoxelRCNN
+from pcdet.models.detectors import VoxelRCNN,SECONDNet,PVRCNN,CenterPoint,VoxelNeXt
 import spconv.pytorch as spconv
 import torch.nn as nn
-from utils.pruners_whole import get_weights, get_modules,get_all_modules,get_weights_2d
+from .utils import get_weights,get_all_modules,get_weights_2d,get_modules_3d,get_modules_2d,get_modules_2d_head
 from pcdet.models.model_utils.flops_utils import calculate_gemm_flops
 try:
     import kornia
@@ -35,6 +35,16 @@ PARAMETRIZED_MODULE_TYPES = (
 )
 NORM_MODULE_TYPES = (torch.nn.BatchNorm2d, torch.nn.LayerNorm)
 
+def get_model_sparsity(model):
+    prunables = 0
+    nnzs = 0
+    modules=[]
+    modules=findconv(model)
+    
+    for m in modules:
+        prunables += m.weight.data.numel()
+        nnzs += m.weight.data.nonzero().size(0)
+    return nnzs/prunables
 
 def loadnetwork(archname, gpuid, act_bitwidth=-1):
     global device
@@ -88,11 +98,23 @@ def pushlist(layers, container, attr, includenorm, direction, prefix=""):
         pushconv(layers, container[attr], includenorm, direction, prefix=prefix)
 
 
-def pushconv(layers, container, includenorm=True, direction=0, prefix="model",compare=False):
+def pushconv(layers, container, includenorm=True, backbone3d=False, backbone2d=False,head=False,compare=False):
+    modules=[]
     if compare:
         return get_all_modules(container)
-    else:
-        return get_modules(container)
+    if isinstance(container,SECONDNet):
+        return get_modules_3d(container)
+    elif isinstance(container,VoxelRCNN):
+        return get_modules_3d(container)
+    elif isinstance(container,PVRCNN):
+        return get_modules_3d(container)
+    elif isinstance(container,CenterPoint):
+        modules=[]
+        modules.extend(get_modules_3d(container))
+        modules.extend(get_modules_2d(container))
+        return modules
+    elif isinstance(container,VoxelNeXt):
+        return get_modules_3d(container)
     # if isinstance(container, models.densenet.DenseNet):
     #     pushconv(layers, container.features, includenorm, direction)
     #     pushattr(layers, container, "classifier", includenorm, direction)
@@ -498,9 +520,9 @@ def _count_total_unmasked_weights(model):
     unmaskeds_3d = []
     unmaskeds_2d=[]
     for m in mlist_3d:
-        unmaskeds_3d.append(m.weight_mask.count_nonzero())
+        unmaskeds_3d.append(m.weight.count_nonzero())
     for m in mlist_2d:
-        unmaskeds_2d.append(m.weight_mask.count_nonzero())
+        unmaskeds_2d.append(m.weight.count_nonzero())
     return torch.FloatTensor(unmaskeds_2d),torch.FloatTensor(unmaskeds_3d)
 
 
@@ -514,6 +536,7 @@ def get_model_flops(net, dataloader):
     total_nom_flops_3d=[]
     total_denom_flops_2d=[]
     total_nom_flops_2d=[]
+    progress_bar = tqdm.tqdm(total=len(dataloader), leave=True, desc='eval', dynamic_ncols=True)
     for i, batch_dict in enumerate(dataloader):
         load_data_to_gpu(batch_dict)
     # if dataset == "cifar":
@@ -521,12 +544,12 @@ def get_model_flops(net, dataloader):
     # else:
     #     dummy_input = torch.zeros((1, 3, 224, 224), device=next(net.parameters()).device)
 
-        layers = findconv(net, False,True)
+        layers = findconv(net, False,compare=True)
         layers=layers[0]+layers[1]
        
         unmaskeds_2d,unmaskeds_3d = _count_total_unmasked_weights(net)
         unmaskeds = torch.cat((unmaskeds_3d, unmaskeds_2d))
-
+       
         totals2d,totals_3d=_count_total_weights_2d_3d(net)
         totals=torch.cat((totals_3d, totals2d))
 
@@ -676,6 +699,8 @@ def get_model_flops(net, dataloader):
             total_nom_flops_3d.append(nom_flops_3d)
             total_denom_flops_2d.append(denom_flops_2d)
             total_nom_flops_2d.append(nom_flops_2d)
+        progress_bar.update()
+    progress_bar.close()
     print(sum(total_denom_flops)/len(dataloader),sum(total_nom_flops)/len(dataloader),sum(total_denom_flops_3d)/len(dataloader))
 
     return (sum(total_nom_flops)/len(dataloader)) / (sum(total_denom_flops)/len(dataloader)),sum(total_nom_flops_3d)/len(dataloader),sum(total_denom_flops_3d)/len(dataloader),sum(total_nom_flops_2d)/len(dataloader),sum(total_denom_flops_2d)/len(dataloader)

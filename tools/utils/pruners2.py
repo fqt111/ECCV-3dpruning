@@ -1,6 +1,6 @@
 import torch
 from torch.nn.utils import prune
-from utils.utils import get_weights,get_weights_2d, get_modules, get_all_modules,get_model_sparsity
+from utils.utils import get_weights,get_weights_2d, get_modules, get_all_modules
 import numpy as np
 import utils.common as common
 import utils.algo as algo
@@ -169,37 +169,6 @@ def statistics_info(cfg, ret_dict, metric, disp_dict):
     disp_dict['recall_%s' % str(min_thresh)] = \
         '(%d, %d) / %d' % (metric['recall_roi_%s' % str(min_thresh)], metric['recall_rcnn_%s' % str(min_thresh)], metric['gt_num'])
 
-<<<<<<< HEAD
-import torch.nn as nn
-def hooklayers(layers):
-    return [Hook(layer) for layer in layers]
-
-
-class Hook:
-    def __init__(self, module, backward=False):
-        if not backward:
-            self.hook = module.register_forward_hook(self.hook_fn)
-        else:
-            self.hook = module.register_backward_hook(self.hook_fn)
-
-    def hook_fn(self, module, input, output):
-        if isinstance(module,nn.Conv2d):
-            self.input_tensor = input[0]
-            self.input = torch.tensor(input[0].shape[1:])
-            self.output = torch.tensor(output[0].shape[1:])
-            self.input_tensor = input[0]
-            self.output_tensor = output[0]
-        else:
-            self.input_tensor = input[0]
-            self.input = torch.tensor(input[0].features)
-            self.output = torch.tensor(output.features)
-            self.input_tensor = input
-            self.output_tensor = output
-
-    def close(self):
-        self.hook.remove()
-=======
->>>>>>> 2e51e307413772c068a6fdd79796bf06ee4b5552
 
 def eval_one_epoch(cfg, model, dataloader, epoch_id, dist_test=False, save_to_file=False, result_dir=None):
     # result_dir.mkdir(parents=True, exist_ok=True)
@@ -236,27 +205,6 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, dist_test=False, save_to_fi
     mlist = get_modules(model)
     for i, batch_dict in enumerate(dataloader):
         load_data_to_gpu(batch_dict)
-<<<<<<< HEAD
-        # hookedlayers = hooklayers(mlist)
-        # with torch.no_grad():
-        output = model(batch_dict,pruning=True)
-        # output = [hookedlayers[i].output for i in range(0, len(hookedlayers))]
-        # final_layer_output=output[-1]
-        res = torch.mean((output.features ** 2))
-        # res.requires_grad_(True)
-        res.backward()
-        # for l in hookedlayers:
-        #     l.close()
-
-        for idx, m in enumerate(mlist):
-            if len(grad_list) < len(mlist):
-                grad_list.append(m.weight.grad.data / len(dataloader))
-            else:
-                grad_list[idx] += m.weight.grad.data / len(dataloader)
-        for p in model.parameters():
-            if p.grad is not None:
-                torch.nn.init.zeros_(p.grad.data)
-=======
         # with torch.no_grad():
         loss,pred_dicts, ret_dict = model(batch_dict)
 
@@ -279,7 +227,6 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, dist_test=False, save_to_fi
             for p in model.parameters():
                 if p.grad is not None:
                     torch.nn.init.zeros_(p.grad.data)
->>>>>>> 2e51e307413772c068a6fdd79796bf06ee4b5552
     
     #     statistics_info(cfg, ret_dict, metric, disp_dict)
     #     annos = dataset.generate_prediction_dicts(
