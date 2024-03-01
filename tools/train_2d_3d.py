@@ -26,7 +26,7 @@ def parse_config():
     parser.add_argument("--cfg_file", type=str, default='cfgs/kitti_models/voxel_rcnn_car_spss_ratio0.5_sprs_ratio0.5.yaml', help="specify the config for training")
 
     parser.add_argument("--batch_size", type=int, default=64, required=False, help="batch size for training")
-    parser.add_argument("--epochs", type=int, default=20
+    parser.add_argument("--epochs", type=int, default=40
                         , required=False, help="number of epochs to train for")
     parser.add_argument("--workers", type=int, default=4, help="number of workers for dataloader")
     parser.add_argument("--extra_tag", type=str, default="default", help="extra tag for this experiment")
@@ -37,7 +37,7 @@ def parse_config():
     parser.add_argument("--tcp_port", type=int, default=18889, help="tcp port for distrbuted training")
     parser.add_argument("--sync_bn", action="store_true", default=False, help="whether to use sync bn")
     parser.add_argument("--fix_random_seed", action="store_true", default=False, help="")
-    parser.add_argument("--ckpt_save_interval", type=int, default=1, help="number of training epochs")
+    parser.add_argument("--ckpt_save_interval", type=int, default=5, help="number of training epochs")
     parser.add_argument("--local_rank", type=int, default=0, help="local rank for distributed training")
     parser.add_argument("--max_ckpt_save_num", type=int, default=20, help="max number of saved checkpoint")
     parser.add_argument("--merge_all_iters_to_one_epoch", action="store_true", default=False, help="")
