@@ -544,14 +544,18 @@ def get_model_flops(net, dataloader):
     # else:
     #     dummy_input = torch.zeros((1, 3, 224, 224), device=next(net.parameters()).device)
 
-        layers = findconv(net, False,compare=True)
-        layers=layers[0]+layers[1]
-       
-        unmaskeds_2d,unmaskeds_3d = _count_total_unmasked_weights(net)
-        unmaskeds = torch.cat((unmaskeds_3d, unmaskeds_2d))
-       
-        totals2d,totals_3d=_count_total_weights_2d_3d(net)
-        totals=torch.cat((totals_3d, totals2d))
+        layers = findconv(net, False)
+        # layers=layers[0]+layers[1]
+        unmaskeds=[]
+        totals=[]
+        for m in layers:
+            unmaskeds.append(m.weight.count_nonzero())
+            totals.append(m.weight.numel())
+        # unmaskeds_2d,unmaskeds_3d = _count_total_unmasked_weights(net)
+        # unmaskeds = torch.cat((unmaskeds_3d, unmaskeds_2d))
+        
+        # totals2d,totals_3d=_count_total_weights_2d_3d(net)
+        # totals=torch.cat((totals_3d, totals2d))
 
         hookedlayers = hooklayers(layers)
 
