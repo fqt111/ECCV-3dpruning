@@ -13,7 +13,8 @@ class SECONDNet(Detector3DTemplate):
                 batch_dict = cur_module(batch_dict)
                 if isinstance(cur_module,VoxelBackBone8x):
                     break
-            loss=torch.mean((batch_dict['encoded_spconv_tensor'].features ** 2))
+            # loss=torch.mean((batch_dict['encoded_spconv_tensor'].features ** 2))
+            loss=torch.mean((batch_dict['multi_scale_3d_features']['x_conv4'].features ** 2))
             return loss
         # if pruning:
         #     loss_rpn=torch.mean((self.dense_head.forward_ret_dict['cls_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['box_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['dir_cls_preds'] ** 2))

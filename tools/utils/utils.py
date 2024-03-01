@@ -56,6 +56,8 @@ def get_all_modules(model):
             modules_3d.append(m)
         elif _is_2d_prunable_module(m):
             modules_2d.append(m)
+    if len(modules_3d)==12:
+        modules_3d=modules_3d[1:11]
     return [modules_3d,modules_2d]
 
 
@@ -66,6 +68,8 @@ def get_modules(model):
             break
         if _is_prunable_module(m) or _is_2d_prunable_module(m):
             modules.append(m)
+    if len(modules)==12:
+        modules=modules[1:11]
     return modules
 
 def get_convmodules(model):
@@ -80,6 +84,8 @@ def get_copied_modules(model):
     for m in model.modules():
         if _is_prunable_module(m):
             modules.append(deepcopy(m).cpu())
+    if len(modules)==12:
+        modules=modules[1:11]
     return modules
 
 def get_model_sparsity(model):

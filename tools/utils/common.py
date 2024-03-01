@@ -566,7 +566,7 @@ def get_model_flops(net, dataloader):
                 denom_flops_3d +=flops
                 denom_flops+=flops
                 nom_flops += flops  * surv /tot
-                nom_flops_3d += flops  * surv /tot 
+                nom_flops_3d += flops  * surv /tot
             elif isinstance(m,nn.Conv2d) or isinstance(m,nn.ConvTranspose2d):
                 denom_flops+=(o_dim[-2:].prod() * tot + (0 if m.bias is None else o_dim.prod()))
                 nom_flops += (o_dim[-2:].prod() * surv + (0 if m.bias is None else o_dim.prod()))
