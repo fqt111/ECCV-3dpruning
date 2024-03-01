@@ -498,9 +498,9 @@ def _count_total_unmasked_weights(model):
     unmaskeds_3d = []
     unmaskeds_2d=[]
     for m in mlist_3d:
-        unmaskeds_3d.append(m.weight_mask.count_nonzero())
+        unmaskeds_3d.append(m.weight.count_nonzero())
     for m in mlist_2d:
-        unmaskeds_2d.append(m.weight_mask.count_nonzero())
+        unmaskeds_2d.append(m.weight.count_nonzero())
     return torch.FloatTensor(unmaskeds_2d),torch.FloatTensor(unmaskeds_3d)
 
 
