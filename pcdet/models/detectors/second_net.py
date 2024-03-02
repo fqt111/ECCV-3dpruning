@@ -1,6 +1,7 @@
 from .detector3d_template import Detector3DTemplate
 import torch
 from pcdet.models.backbones_3d.spconv_backbone import VoxelBackBone8x
+from pcdet.models.backbones_2d.base_bev_backbone import BaseBEVBackbone
 
 class SECONDNet(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
@@ -8,13 +9,21 @@ class SECONDNet(Detector3DTemplate):
         self.module_list = self.build_networks()
 
     def forward(self, batch_dict,pruning=False):
+        # if pruning:
+        #     for cur_module in self.module_list:
+        #         batch_dict = cur_module(batch_dict)
+        #         if isinstance(cur_module,VoxelBackBone8x):
+        #             break
+        #     # loss=torch.mean((batch_dict['encoded_spconv_tensor'].features ** 2))
+        #     loss=torch.mean((batch_dict['multi_scale_3d_features']['x_conv4'].features ** 2))
+        #     return loss
         if pruning:
             for cur_module in self.module_list:
                 batch_dict = cur_module(batch_dict)
-                if isinstance(cur_module,VoxelBackBone8x):
+                if isinstance(cur_module,BaseBEVBackbone):
                     break
-            # loss=torch.mean((batch_dict['encoded_spconv_tensor'].features ** 2))
-            loss=torch.mean((batch_dict['multi_scale_3d_features']['x_conv4'].features ** 2))
+            loss=torch.mean((batch_dict['spatial_features_2d'] ** 2)) 
+            # loss_rpn=torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['center'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['center_z'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['dim'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['rot'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['hm'] ** 2))
             return loss
         # if pruning:
         #     loss_rpn=torch.mean((self.dense_head.forward_ret_dict['cls_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['box_preds'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['dir_cls_preds'] ** 2))
