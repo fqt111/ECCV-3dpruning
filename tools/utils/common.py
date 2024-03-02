@@ -103,11 +103,20 @@ def pushconv(layers, container, includenorm=True, backbone3d=False, backbone2d=F
     if compare:
         return get_all_modules(container)
     if isinstance(container,SECONDNet):
-        return get_modules_3d(container)
+        modules=[]
+        modules.extend(get_modules_3d(container))
+        modules.extend(get_modules_2d(container))
+        return modules
     elif isinstance(container,VoxelRCNN):
-        return get_modules_3d(container)
+        modules=[]
+        modules.extend(get_modules_3d(container))
+        modules.extend(get_modules_2d(container))
+        return modules
     elif isinstance(container,PVRCNN):
-        return get_modules_3d(container)
+        modules=[]
+        modules.extend(get_modules_3d(container))
+        modules.extend(get_modules_2d(container))
+        return modules
     elif isinstance(container,CenterPoint):
         modules=[]
         modules.extend(get_modules_3d(container))

@@ -332,24 +332,24 @@ def main():
     if isinstance(model,nn.parallel.DistributedDataParallel): 
         model=model.module
     if start_epoch==0:
+        flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,test_loader)
+        logger.info(
+        "**********************before pruning/ flops_ratio:%s/ 3d/3d+2d(11.5):%s /3d/3d+2d(47.4):%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
+        % (flops_ratio, (denom_flops_3d*0.093+denom_flops_2d)/(denom_flops_3d+denom_flops_2d), (denom_flops_3d*0.474+denom_flops_2d)/(denom_flops_3d+denom_flops_2d),nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
+        )
+        # amounts,mask,totals=pruner(model,args, prune_loader, container,it,output_dir,sparsity=args.sparsity)
         # flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,prune_loader)
         # logger.info(
-        # "**********************before pruning/ flops_ratio:%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
-        # % (flops_ratio, nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
+        # "**********************after pruning/ total flops_ratio:%s/ 3d flops_ratio:%s / nom_flops3d:%s /denon_flops3d:%s /nom_flops2d:%s /denon_flops2d:%s*********************"
+        # % (flops_ratio, nom_flops_3d/denom_flops_3d,nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
         # )
-        amounts,mask,totals=pruner(model,args, prune_loader, container,it,output_dir,sparsity=args.sparsity)
-        flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,prune_loader)
-        logger.info(
-        "**********************after pruning/ total flops_ratio:%s/ 3d flops_ratio:%s / nom_flops3d:%s /denon_flops3d:%s /nom_flops2d:%s /denon_flops2d:%s*********************"
-        % (flops_ratio, nom_flops_3d/denom_flops_3d,nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
-        )
-        sparse = common.get_model_sparsity(model)
-        logger.info(f"sparsity: {sparse}")
-        total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        logger.info(
-        "*********************each layer amount:%s/ whole network parameters:%s total pruning weight parameters:%s mask:%s *********************"
-        % (amounts, total_params, totals,mask)
-        )
+        # sparse = common.get_model_sparsity(model)
+        # logger.info(f"sparsity: {sparse}")
+        # total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        # logger.info(
+        # "*********************each layer amount:%s/ whole network parameters:%s total pruning weight parameters:%s mask:%s *********************"
+        # % (amounts, total_params, totals,mask)
+        # )
 
     model.train()  # before wrap to DistributedDataParallel to support fixed some parameters
     if args.sync_bn:
