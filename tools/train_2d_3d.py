@@ -337,7 +337,7 @@ def main():
         # "**********************before pruning/ flops_ratio:%s/ 3d/3d+2d(11.5):%s /3d/3d+2d(47.4):%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
         # % (flops_ratio, (denom_flops_3d*0.1+denom_flops_2d)/(denom_flops_3d+denom_flops_2d), (denom_flops_3d*0.474+denom_flops_2d)/(denom_flops_3d+denom_flops_2d),nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
         # )
-        amounts,mask,totals=pruner(model,args, prune_loader, container,it,output_dir,sparsity=args.sparsity)
+        amounts,mask,totals=pruner(model,args, test_loader, container,it,output_dir,sparsity=args.sparsity)
         flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,prune_loader)
         logger.info(
         "**********************after pruning/ total flops_ratio:%s/ 3d flops_ratio:%s / nom_flops3d:%s /denon_flops3d:%s /nom_flops2d:%s /denon_flops2d:%s*********************"

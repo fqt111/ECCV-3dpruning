@@ -1,6 +1,8 @@
 from .detector3d_template import Detector3DTemplate
 from pcdet.models.backbones_3d.spconv_backbone import VoxelBackBone8x
 import torch
+from pcdet.models.backbones_2d.base_bev_backbone import BaseBEVBackbone
+
 class VoxelRCNN(Detector3DTemplate):
     def __init__(self, model_cfg, num_class, dataset):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
@@ -10,13 +12,12 @@ class VoxelRCNN(Detector3DTemplate):
         if pruning:
             for cur_module in self.module_list:
                 batch_dict = cur_module(batch_dict)
-                if isinstance(cur_module,VoxelBackBone8x):
+                if isinstance(cur_module,BaseBEVBackbone):
                     break
-            # loss=torch.mean((batch_dict['encoded_spconv_tensor'].features ** 2))
-            loss=torch.mean((batch_dict['multi_scale_3d_features']['x_conv4'].features ** 2))
-                
+            loss=torch.mean((batch_dict['spatial_features_2d'] ** 2)) 
+            # loss=torch.mean((batch_dict['multi_scale_3d_features']['x_conv4'].features ** 2))
             return loss
-        
+   
         for cur_module in self.module_list:
             batch_dict = cur_module(batch_dict)
         # if pruning:
