@@ -27,7 +27,7 @@ def parse_config():
     parser.add_argument("--cfg_file", type=str, default='cfgs/kitti_models/voxel_rcnn_car_spss_ratio0.5_sprs_ratio0.5.yaml', help="specify the config for training")
 
     parser.add_argument("--batch_size", type=int, default=64, required=False, help="batch size for training")
-    parser.add_argument("--epochs", type=int, default=40
+    parser.add_argument("--epochs", type=int, default=60
                         , required=False, help="number of epochs to train for")
     parser.add_argument("--workers", type=int, default=4, help="number of workers for dataloader")
     parser.add_argument("--extra_tag", type=str, default="default", help="extra tag for this experiment")
@@ -38,7 +38,7 @@ def parse_config():
     parser.add_argument("--tcp_port", type=int, default=18889, help="tcp port for distrbuted training")
     parser.add_argument("--sync_bn", action="store_true", default=False, help="whether to use sync bn")
     parser.add_argument("--fix_random_seed", action="store_true", default=False, help="")
-    parser.add_argument("--ckpt_save_interval", type=int, default=4, help="number of training epochs")
+    parser.add_argument("--ckpt_save_interval", type=int, default=5, help="number of training epochs")
     parser.add_argument("--local_rank", type=int, default=0, help="local rank for distributed training")
     parser.add_argument("--max_ckpt_save_num", type=int, default=20, help="max number of saved checkpoint")
     parser.add_argument("--merge_all_iters_to_one_epoch", action="store_true", default=False, help="")
@@ -338,7 +338,7 @@ def main():
         # % (flops_ratio, (denom_flops_3d*0.1+denom_flops_2d)/(denom_flops_3d+denom_flops_2d), (denom_flops_3d*0.474+denom_flops_2d)/(denom_flops_3d+denom_flops_2d),nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
         # )
         amounts,mask,totals=pruner(model,args, test_loader, container,it,output_dir,sparsity=args.sparsity)
-        flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,prune_loader)
+        flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,test_loader)
         logger.info(
         "**********************after pruning/ total flops_ratio:%s/ 3d flops_ratio:%s / nom_flops3d:%s /denon_flops3d:%s /nom_flops2d:%s /denon_flops2d:%s*********************"
         % (flops_ratio, nom_flops_3d/denom_flops_3d,nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
