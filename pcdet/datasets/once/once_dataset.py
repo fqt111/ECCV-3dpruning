@@ -50,7 +50,7 @@ class ONCEDataset(DatasetTemplate):
                 infos = pickle.load(f)
                 once_infos.extend(infos)
         if val=='prune' :
-            once_infos=once_infos[:100]
+            once_infos=once_infos[:400]
         def check_annos(info):
             return 'annos' in info
 

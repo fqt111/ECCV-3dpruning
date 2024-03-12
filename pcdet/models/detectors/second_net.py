@@ -8,7 +8,7 @@ class SECONDNet(Detector3DTemplate):
         super().__init__(model_cfg=model_cfg, num_class=num_class, dataset=dataset)
         self.module_list = self.build_networks()
 
-    def forward(self, batch_dict,pruning=False):
+    def forward(self, batch_dict,pruning=False,cls=1,box=1):
         # if pruning:
         #     for cur_module in self.module_list:
         #         batch_dict = cur_module(batch_dict)
@@ -20,9 +20,11 @@ class SECONDNet(Detector3DTemplate):
         if pruning:
             for cur_module in self.module_list:
                 batch_dict = cur_module(batch_dict)
-                if isinstance(cur_module,BaseBEVBackbone):
-                    break
-            loss=torch.mean((batch_dict['spatial_features_2d'] ** 2)) 
+                # if isinstance(cur_module,BaseBEVBackbone):
+                #     break
+            loss=cls*torch.mean((self.dense_head.forward_ret_dict['cls_preds'] ** 2))+box*torch.mean((self.dense_head.forward_ret_dict['box_preds'] ** 2))+cls*torch.mean((self.dense_head.forward_ret_dict['dir_cls_preds'] ** 2))
+            # return batch_dict['spatial_features_2d']
+            # loss=torch.mean((batch_dict['spatial_features_2d'] ** 2)) 
             # loss_rpn=torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['center'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['center_z'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['dim'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['rot'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['hm'] ** 2))
             return loss
         # if pruning:

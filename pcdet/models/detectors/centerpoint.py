@@ -12,6 +12,7 @@ class CenterPoint(Detector3DTemplate):
                 batch_dict = cur_module(batch_dict)
                 if isinstance(cur_module,BaseBEVBackbone):
                     break
+            # return batch_dict['spatial_features_2d']
             loss=torch.mean((batch_dict['spatial_features_2d'] ** 2)) 
             # loss_rpn=torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['center'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['center_z'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['dim'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['rot'] ** 2))+torch.mean((self.dense_head.forward_ret_dict['pred_dicts'][0]['hm'] ** 2))
             return loss

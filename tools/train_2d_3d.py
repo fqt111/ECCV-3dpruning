@@ -26,7 +26,7 @@ def parse_config():
     parser = argparse.ArgumentParser(description="arg parser")
     parser.add_argument("--cfg_file", type=str, default='cfgs/kitti_models/voxel_rcnn_car_spss_ratio0.5_sprs_ratio0.5.yaml', help="specify the config for training")
 
-    parser.add_argument("--batch_size", type=int, default=64, required=False, help="batch size for training")
+    parser.add_argument("--batch_size", type=int, default=128, required=False, help="batch size for training")
     parser.add_argument("--epochs", type=int, default=30
                         , required=False, help="number of epochs to train for")
     parser.add_argument("--workers", type=int, default=4, help="number of workers for dataloader")
@@ -40,14 +40,14 @@ def parse_config():
     parser.add_argument("--fix_random_seed", action="store_true", default=False, help="")
     parser.add_argument("--ckpt_save_interval", type=int, default=1, help="number of training epochs")
     parser.add_argument("--local_rank", type=int, default=0, help="local rank for distributed training")
-    parser.add_argument("--max_ckpt_save_num", type=int, default=30, help="max number of saved checkpoint")
+    parser.add_argument("--max_ckpt_save_num", type=int, default=60, help="max number of saved checkpoint")
     parser.add_argument("--merge_all_iters_to_one_epoch", action="store_true", default=False, help="")
     parser.add_argument(
         "--set", dest="set_cfgs", default=None, nargs=argparse.REMAINDER, help="set extra config keys if needed"
     )
     parser.add_argument("--max_waiting_mins", type=int, default=0, help="max waiting minutes")
     parser.add_argument("--start_epoch", type=int, default=0, help="")
-    parser.add_argument("--num_epochs_to_eval", type=int, default=20, help="number of checkpoints to be evaluated")
+    parser.add_argument("--num_epochs_to_eval", type=int, default=60, help="number of checkpoints to be evaluated")
     parser.add_argument("--save_to_file", action="store_true", default=False, help="")
     parser.add_argument('--use_tqdm_to_record', action='store_true', default=False, help='if True, the intermediate losses will not be logged to file, only tqdm will be used')
     parser.add_argument('--logger_iter_interval', type=int, default=50, help='')
@@ -55,7 +55,8 @@ def parse_config():
     parser.add_argument('--wo_gpu_stat', action='store_true', help='')
     parser.add_argument('--use_amp', action='store_true', help='use mix precision training')
 
-
+    parser.add_argument("--cls", type=float, default=1, help="target sparsity")
+    parser.add_argument("--box", type=float, default=1, help="target sparsity")
     parser.add_argument("--sparsity", type=float, default=0, help="target sparsity")
     parser.add_argument("--cuda", type=int, help="cuda number")
     parser.add_argument("--model", default='voxel-rcnn',type=str, help="network")
@@ -189,14 +190,20 @@ def main():
     #     model.load_params_from_file(filename=args.ckpt)
     #     model.cuda()
     model = build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
-    if not args.pretrained_model: 
-        module_list = common.findconv(model, False)(model)
-        for m in module_list:
-            prune.identity(m, name="weight")
+    
     # cfg.MODEL.NAME='VoxelRCNN_pruning'
     # model_pruning=build_network(model_cfg=cfg.MODEL, num_class=len(cfg.CLASS_NAMES), dataset=train_set)
 
     container=copy.deepcopy(model)    
+    if not args.pretrained_model: 
+        module_list = common.findconv(model, False)
+        # module_list = get_modules(model)
+        for m in module_list:
+            prune.identity(m, name="weight")
+        container_module_list = common.findconv(container, False)
+        # module_list = get_modules(model)
+        for m in container_module_list:
+            prune.identity(m, name="weight")
     optimizer = build_optimizer(model, cfg.OPTIMIZATION)
 
     # load checkpoint if it is possible
@@ -209,80 +216,95 @@ def main():
     start_epoch = it = 0
     last_epoch = start_epoch+1
     iter_start=args.iter_start
+
+    
+    # assert (args.pretrained_model ==None and args.finetune_model ==None), "you should define pretrained model or finetune model"
     if args.pretrained_model is not None:
         model.load_params_from_file(filename=args.pretrained_model, to_cpu=dist_train, logger=logger)
-    elif args.finetune_model:
-        path_components = args.finetune_model.split('/')
-        iter_start = int(path_components[-2])
-        model.load_params_from_file(filename=args.finetune_model, to_cpu=dist_train, logger=logger)
-        match = re.search(r"checkpoint_epoch_(\d+)", args.finetune_model)
-        if match:
-            start_epoch = int(match.group(1))
-            print(f'matching current iteration %s and start_epoch %s',iter_start,start_epoch)
-    else:
-        numbered_folders,iter = find_max_numbered_folder(ckpt_dir)
-        iter_start=iter
-        print('iter_start',iter_start)
-        if numbered_folders and len(numbered_folders)>1:
-            cur_folder=os.path.join(ckpt_dir, numbered_folders[0])
-            cur_ckpt_list = glob.glob(str(os.path.join(cur_folder ,"*checkpoint_epoch_*.pth")))
-            prev_folder=os.path.join(ckpt_dir, numbered_folders[1])
-            prev_ckpt_list = glob.glob(str(os.path.join(prev_folder ,"*checkpoint_epoch_*.pth")))
-            if cur_ckpt_list:
-                cur_ckpt_list.sort(key=os.path.getmtime)
-                pretrained_ckpt=cur_ckpt_list[-1]
-                model.load_params_from_file(filename=pretrained_ckpt, to_cpu=dist_train, logger=logger)
-                # checkpoint = torch.load(pretrained_ckpt)
-                # sd=checkpoint['model_state']
-                # new = sd.copy()
-                # for k, v in sd.items():
-                #     if "weight_orig" in k:
-                #         new[k.replace("weight_orig", "weight")] = v * sd[k.replace("weight_orig", "weight_mask")]
-                # model.load_state_dict(new, strict=False) 
-                print('load the ckpt',pretrained_ckpt)
+    else :
+        new_ckpt_dir=output_dir / args.prune_mode/"ckpt"/str(args.sparsity)
+        cur_ckpt_list = glob.glob(str(os.path.join(new_ckpt_dir ,"*checkpoint_epoch_*.pth")))
+        if cur_ckpt_list:
+            cur_ckpt_list.sort(key=os.path.getmtime)
+            pretrained_ckpt=cur_ckpt_list[-1]
+            print('finetune ckpt',pretrained_ckpt)
+            model.load_params_from_file(filename=pretrained_ckpt, to_cpu=dist_train, logger=logger)  
+            match = re.search(r"checkpoint_epoch_(\d+)", pretrained_ckpt)
+            if match:
+                start_epoch = int(match.group(1))
+                print(f'matching current iteration %s and start_epoch %s',iter_start,start_epoch)      
+    # elif args.finetune_model:
+    #     path_components = args.finetune_model.split('/')
+    #     iter_start = int(path_components[-2])
+    #     model.load_params_from_file(filename=args.finetune_model, to_cpu=dist_train, logger=logger)
+    #     match = re.search(r"checkpoint_epoch_(\d+)", args.finetune_model)
+    #     if match:
+    #         start_epoch = int(match.group(1))
+    #         print(f'matching current iteration %s and start_epoch %s',iter_start,start_epoch)
+    # else:
+    #     numbered_folders,iter = find_max_numbered_folder(ckpt_dir)
+    #     iter_start=iter
+    #     print('iter_start',iter_start)
+    #     if numbered_folders and len(numbered_folders)>1:
+    #         cur_folder=os.path.join(ckpt_dir, numbered_folders[0])
+    #         cur_ckpt_list = glob.glob(str(os.path.join(cur_folder ,"*checkpoint_epoch_*.pth")))
+    #         prev_folder=os.path.join(ckpt_dir, numbered_folders[1])
+    #         prev_ckpt_list = glob.glob(str(os.path.join(prev_folder ,"*checkpoint_epoch_*.pth")))
+    #         if cur_ckpt_list:
+    #             cur_ckpt_list.sort(key=os.path.getmtime)
+    #             pretrained_ckpt=cur_ckpt_list[-1]
+    #             model.load_params_from_file(filename=pretrained_ckpt, to_cpu=dist_train, logger=logger)
+    #             # checkpoint = torch.load(pretrained_ckpt)
+    #             # sd=checkpoint['model_state']
+    #             # new = sd.copy()
+    #             # for k, v in sd.items():
+    #             #     if "weight_orig" in k:
+    #             #         new[k.replace("weight_orig", "weight")] = v * sd[k.replace("weight_orig", "weight_mask")]
+    #             # model.load_state_dict(new, strict=False) 
+    #             print('load the ckpt',pretrained_ckpt)
 
-                match = re.search(r"checkpoint_epoch_(\d+)", pretrained_ckpt)
-                if match:
-                    start_epoch = int(match.group(1))
-                    print(f'matching current iteration %s and start_epoch %s',iter_start,start_epoch)
-            elif prev_ckpt_list:
-                # epoch_number = re.findall(r'\d+', file_name)
-                prev_ckpt_list.sort(key=os.path.getmtime)
-                pretrained_ckpt=prev_ckpt_list[-1]
-                model.load_params_from_file(filename=pretrained_ckpt, to_cpu=dist_train, logger=logger)
-                # checkpoint = torch.load(pretrained_ckpt)
-                # sd=checkpoint['model_state']
-                # new = sd.copy()
-                # for k, v in sd.items():
-                #     if "weight_orig" in k:
-                #         new[k.replace("weight_orig", "weight")] = v * sd[k.replace("weight_orig", "weight_mask")]
-                # model.load_state_dict(new, strict=False) 
-                print('load the ckpt',pretrained_ckpt)
+    #             match = re.search(r"checkpoint_epoch_(\d+)", pretrained_ckpt)
+    #             if match:
+    #                 start_epoch = int(match.group(1))
+    #                 print(f'matching current iteration %s and start_epoch %s',iter_start,start_epoch)
+    #         elif prev_ckpt_list:
+    #             # epoch_number = re.findall(r'\d+', file_name)
+    #             prev_ckpt_list.sort(key=os.path.getmtime)
+    #             pretrained_ckpt=prev_ckpt_list[-1]
+    #             model.load_params_from_file(filename=pretrained_ckpt, to_cpu=dist_train, logger=logger)
+    #             # checkpoint = torch.load(pretrained_ckpt)
+    #             # sd=checkpoint['model_state']
+    #             # new = sd.copy()
+    #             # for k, v in sd.items():
+    #             #     if "weight_orig" in k:
+    #             #         new[k.replace("weight_orig", "weight")] = v * sd[k.replace("weight_orig", "weight_mask")]
+    #             # model.load_state_dict(new, strict=False) 
+    #             print('load the ckpt',pretrained_ckpt)
     
-                match = re.search(r"checkpoint_epoch_(\d+)", pretrained_ckpt)
-                if match:
-                    epoch = int(match.group(1))
-                    assert epoch == args.iter_end, (f"previous folder must already trained %s epoch",args.iter_end)
+    #             match = re.search(r"checkpoint_epoch_(\d+)", pretrained_ckpt)
+    #             if match:
+    #                 epoch = int(match.group(1))
+    #                 assert epoch == args.iter_end, (f"previous folder must already trained %s epoch",args.iter_end)
             
-        elif numbered_folders and len(numbered_folders)==1:
-            cur_folder=os.path.join(ckpt_dir, numbered_folders[0])
-            cur_ckpt_list = glob.glob(str(os.path.join(cur_folder ,"*checkpoint_epoch_*.pth")))            
-            if cur_ckpt_list:
-                cur_ckpt_list.sort(key=os.path.getmtime)
-                pretrained_ckpt=cur_ckpt_list[-1]
-                model.load_params_from_file(filename=pretrained_ckpt, to_cpu=dist_train, logger=logger)
-                # checkpoint = torch.load(pretrained_ckpt)
-                # sd=checkpoint['model_state']
-                # new = sd.copy()
-                # for k, v in sd.items():
-                #     if "weight_orig" in k:
-                #         new[k.replace("weight_orig", "weight")] = v * sd[k.replace("weight_orig", "weight_mask")]
-                # model.load_state_dict(new, strict=False) 
-                print('load the ckpt',pretrained_ckpt)
-                match = re.search(r"checkpoint_epoch_(\d+)", pretrained_ckpt)
-                if match:
-                    start_epoch = int(match.group(1))
-                    print(f'matching current iteration %s and start_epoch %s',iter_start,start_epoch)
+    #     elif numbered_folders and len(numbered_folders)==1:
+    #         cur_folder=os.path.join(ckpt_dir, numbered_folders[0])
+    #         cur_ckpt_list = glob.glob(str(os.path.join(cur_folder ,"*checkpoint_epoch_*.pth")))            
+    #         if cur_ckpt_list:
+    #             cur_ckpt_list.sort(key=os.path.getmtime)
+    #             pretrained_ckpt=cur_ckpt_list[-1]
+    #             model.load_params_from_file(filename=pretrained_ckpt, to_cpu=dist_train, logger=logger)
+    #             # checkpoint = torch.load(pretrained_ckpt)
+    #             # sd=checkpoint['model_state']
+    #             # new = sd.copy()
+    #             # for k, v in sd.items():
+    #             #     if "weight_orig" in k:
+    #             #         new[k.replace("weight_orig", "weight")] = v * sd[k.replace("weight_orig", "weight_mask")]
+    #             # model.load_state_dict(new, strict=False) 
+    #             print('load the ckpt',pretrained_ckpt)
+    #             match = re.search(r"checkpoint_epoch_(\d+)", pretrained_ckpt)
+    #             if match:
+    #                 start_epoch = int(match.group(1))
+    #                 print(f'matching current iteration %s and start_epoch %s',iter_start,start_epoch)
     if args.pretrained_model:
         module_list = common.findconv(model, False)
         # module_list = get_modules(model)
@@ -337,7 +359,7 @@ def main():
         # "**********************before pruning/ flops_ratio:%s/ 3d/3d+2d(11.5):%s /3d/3d+2d(47.4):%s/ nom_flops3d:%s denon_flops3d:%s nom_flops2d:%s denon_flops2d:%s*********************"
         # % (flops_ratio, (denom_flops_3d*0.1+denom_flops_2d)/(denom_flops_3d+denom_flops_2d), (denom_flops_3d*0.474+denom_flops_2d)/(denom_flops_3d+denom_flops_2d),nom_flops_3d, denom_flops_3d,nom_flops_2d,denom_flops_2d)
         # )
-        amounts,mask,totals=pruner(model,args, test_loader, container,it,output_dir,sparsity=args.sparsity)
+        amounts,mask,totals=pruner(model,args, prune_loader, container,it,output_dir,sparsity=args.sparsity)
         flops_ratio,nom_flops_3d,denom_flops_3d,nom_flops_2d,denom_flops_2d = common.get_model_flops(model,test_loader)
         logger.info(
         "**********************after pruning/ total flops_ratio:%s/ 3d flops_ratio:%s / nom_flops3d:%s /denon_flops3d:%s /nom_flops2d:%s /denon_flops2d:%s*********************"

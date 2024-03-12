@@ -235,7 +235,7 @@ def eval_one_epoch(cfg, model, dataloader, epoch_id, dist_test=False, save_to_fi
                 if p.grad is not None:
                     torch.nn.init.zeros_(p.grad.data)
         else:
-            grad_list.append(output)
+            grad_list.append(loss)
     
         if cfg.LOCAL_RANK == 0:
             progress_bar.update()
